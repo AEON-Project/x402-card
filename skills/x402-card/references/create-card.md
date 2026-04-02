@@ -60,12 +60,12 @@ With `--poll`, additional output when card is ready:
     "orderNo": "300217748668047431791",
     "orderStatus": "SUCCESS",
     "channelStatus": "COMPLETED",
-    "orderAmount": 5.00,
+    "orderAmount": 0.6,
     "txHash": "0xabc...def",
     "cardLastFour": "4321",
     "cardBin": "485932",
     "cardScheme": "VISA",
-    "cardBalance": 5.00,
+    "cardBalance": 0.6,
     "cardStatus": "ACTIVE"
   }
 }
