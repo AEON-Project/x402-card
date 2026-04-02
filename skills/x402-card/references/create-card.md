@@ -5,7 +5,7 @@
 Before creating a card, verify:
 
 1. `EVM_PRIVATE_KEY` is set — if not, guide user to [wallet-setup](wallet-setup.md)
-2. `X402_CARD_SERVICE_URL` is set — if not, ask user for the service URL
+2. Service URL is configured (has built-in default, no action needed unless user wants to override)
 3. Run `npx @aeon-ai-pay/x402-card wallet` to confirm sufficient USDT + BNB balance
 
 ## Workflow

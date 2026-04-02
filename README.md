@@ -19,8 +19,8 @@ Supported agents: Claude Code, Cursor, Codex, OpenClaw, Gemini CLI, GitHub Copil
 ## CLI Usage
 
 ```bash
-# First time: configure service URL and wallet
-npx @aeon-ai-pay/x402-card setup --service-url https://api.example.com --private-key 0x...
+# First time: provide your EVM wallet private key
+npx @aeon-ai-pay/x402-card setup --private-key 0x...
 
 # Show current config
 npx @aeon-ai-pay/x402-card setup --show
@@ -40,7 +40,6 @@ npx @aeon-ai-pay/x402-card wallet
 - Node.js >= 18
 - An EVM wallet with USDT (BEP-20) on BSC
 - Small BNB for gas fees (~$0.01 per tx)
-- Access to the x402 card service endpoint
 
 ## How it works
 
@@ -51,11 +50,19 @@ User intent -> Agent activates skill -> x402 two-phase protocol:
   3. Poll /status?orderNo=X       -> Card details when ready
 ```
 
-## Configuration Priority
+## Configuration
 
-1. CLI flags (`--service-url`, `--private-key`)
-2. Environment variables (`X402_CARD_SERVICE_URL`, `EVM_PRIVATE_KEY`)
+Only `--private-key` is required. Service URL has a built-in default.
+
+Priority (high to low):
+1. CLI flags (`--private-key`, `--service-url`)
+2. Environment variables (`EVM_PRIVATE_KEY`, `X402_CARD_SERVICE_URL`)
 3. Config file (`~/.x402-card/config.json`, set via `setup` command)
+
+To override the default service URL (optional):
+```bash
+npx @aeon-ai-pay/x402-card setup --service-url https://custom-api.example.com
+```
 
 ## License
 

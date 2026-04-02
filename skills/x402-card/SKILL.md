@@ -21,8 +21,8 @@ Purchase virtual debit cards (Visa/Mastercard) by paying with USDT on BSC via th
 All operations use `npx @aeon-ai-pay/x402-card`:
 
 ```bash
-# First time: configure service URL and wallet
-npx @aeon-ai-pay/x402-card setup --service-url https://api.example.com --private-key 0x...
+# First time: provide your EVM wallet private key (service URL has a built-in default)
+npx @aeon-ai-pay/x402-card setup --private-key 0x...
 
 # Show current config
 npx @aeon-ai-pay/x402-card setup --show
@@ -39,10 +39,11 @@ npx @aeon-ai-pay/x402-card wallet
 
 ## Configuration
 
-Config is stored at `~/.x402-card/config.json` (file permission 600). Three sources, priority from high to low:
+Config is stored at `~/.x402-card/config.json` (file permission 600). Only `privateKey` is required — service URL has a built-in default.
 
-1. **CLI flags**: `--service-url`, `--private-key`
-2. **Environment variables**: `X402_CARD_SERVICE_URL`, `EVM_PRIVATE_KEY`
+Priority (high to low):
+1. **CLI flags**: `--private-key`, `--service-url`
+2. **Environment variables**: `EVM_PRIVATE_KEY`, `X402_CARD_SERVICE_URL`
 3. **Config file**: `~/.x402-card/config.json` (set via `setup` command)
 
 ## Step 0: Check Config and Version
@@ -95,10 +96,10 @@ After config is verified, determine user intent and route:
 - Must be done before any card purchase.
 - To update, run `setup` with only the field to change:
   ```bash
-  # Update service URL only
-  npx @aeon-ai-pay/x402-card setup --service-url <new-url>
-  # Update private key only
+  # Update private key
   npx @aeon-ai-pay/x402-card setup --private-key <new-key>
+  # Update service URL (optional, only if user explicitly requests)
+  npx @aeon-ai-pay/x402-card setup --service-url <new-url>
   ```
 - After update, run `setup --show` to confirm (private key is masked).
 

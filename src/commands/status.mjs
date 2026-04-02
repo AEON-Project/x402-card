@@ -9,7 +9,7 @@ export async function status(opts) {
   const { orderNo, poll } = opts;
 
   if (!serviceUrl) {
-    console.error(JSON.stringify({ error: "Missing service URL. Run: x402-card setup --service-url <url>" }));
+    console.error(JSON.stringify({ error: "Missing service URL. This should not happen — default is built-in. Run: x402-card setup --service-url <url> to override." }));
     process.exit(1);
   }
 

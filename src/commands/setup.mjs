@@ -56,7 +56,8 @@ export async function setup(opts) {
 
   if (!changed) {
     console.error("Usage:");
-    console.error("  x402-card setup --service-url <url> --private-key <0x...>");
+    console.error("  x402-card setup --private-key <0x...>");
+    console.error("  x402-card setup --private-key <0x...> --service-url <url>  (optional)");
     console.error("  x402-card setup --show");
     console.error(`\nConfig file: ${getConfigPath()}`);
     process.exit(1);

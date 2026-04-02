@@ -6,18 +6,24 @@
 - USDT (BEP-20) on BSC for card purchases
 - Small BNB for gas (~$0.01 per tx)
 
-## Step 1: Set Environment Variables
+## Step 1: Provide Private Key
 
 ```bash
-export X402_CARD_SERVICE_URL="https://api.example.com"
-export EVM_PRIVATE_KEY="0x..."
+npx @aeon-ai-pay/x402-card setup --private-key 0x...
 ```
 
-Or pass via CLI flags:
+Service URL has a built-in default — no need to configure unless you want to override:
+
+```bash
+# Optional: override service URL
+npx @aeon-ai-pay/x402-card setup --service-url https://custom-api.example.com
+```
+
+Or pass via CLI flags per command:
 
 ```bash
 npx @aeon-ai-pay/x402-card wallet --private-key 0x...
-npx @aeon-ai-pay/x402-card create --amount 5 --private-key 0x... --service-url https://...
+npx @aeon-ai-pay/x402-card create --amount 5 --private-key 0x...
 ```
 
 **Security:**
@@ -50,7 +56,7 @@ Output:
 
 | Issue | Solution |
 |-------|----------|
-| Missing EVM_PRIVATE_KEY | Set env var or pass `--private-key` |
+| Missing private key | Run `setup --private-key 0x...` |
 | USDT = 0 | Transfer USDT (BEP-20) to wallet address |
 | BNB = 0 | Transfer BNB for gas fees |
 | Wrong network | Ensure BSC mainnet, not testnet |

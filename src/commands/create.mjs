@@ -15,7 +15,7 @@ export async function create(opts) {
 
   // 1. 参数校验
   if (!serviceUrl) {
-    console.error(JSON.stringify({ error: "Missing service URL. Run: x402-card setup --service-url <url>" }));
+    console.error(JSON.stringify({ error: "Missing service URL. This should not happen — default is built-in. Run: x402-card setup --service-url <url> to override." }));
     process.exit(1);
   }
   if (!privateKey) {
