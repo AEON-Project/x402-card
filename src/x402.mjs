@@ -7,6 +7,7 @@ import { toClientEvmSigner } from "@aeon-ai-pay/evm";
 import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http, publicActions } from "viem";
 import { bsc } from "viem/chains";
+import { BSC_RPC_URL } from "./constants.mjs";
 import axios from "axios";
 
 /**
@@ -19,7 +20,7 @@ export function createX402Api(privateKey) {
   const walletClient = createWalletClient({
     account: evmAccount,
     chain: bsc,
-    transport: http(),
+    transport: http(BSC_RPC_URL),
   }).extend(publicActions);
 
   const evmSigner = toClientEvmSigner({

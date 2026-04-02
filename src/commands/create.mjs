@@ -1,11 +1,7 @@
 import { createX402Api, decodePaymentResponse } from "../x402.mjs";
 import { resolve } from "../config.mjs";
 import { getWalletBalance } from "../balance.mjs";
-
-export const MIN_AMOUNT = 0.6;
-export const MAX_AMOUNT = 800;
-const POLL_INTERVAL = 5000;
-const MAX_POLLS = 10;
+import { MIN_AMOUNT, MAX_AMOUNT, POLL_INTERVAL, MAX_POLLS } from "../constants.mjs";
 
 export async function create(opts) {
   const serviceUrl = resolve(opts.serviceUrl, "X402_CARD_SERVICE_URL", "serviceUrl");

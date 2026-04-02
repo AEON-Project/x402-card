@@ -1,19 +1,12 @@
 /**
  * 钱包余额查询（共享模块）
- * 并发请求多个 BSC RPC 节点，谁先返回用谁
  */
 import { privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http, formatUnits } from "viem";
 import { bsc } from "viem/chains";
+import { BSC_RPC_URL } from "./constants.mjs";
 
 const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
-
-const BSC_RPC_URLS = [
-  "https://bsc-dataseed.bnbchain.org",
-  "https://bsc-dataseed1.ninicoin.io",
-  "https://bsc-dataseed2.defibit.io",
-  "https://bsc-rpc.publicnode.com",
-];
 
 const ERC20_BALANCE_ABI = [
   {
@@ -25,14 +18,26 @@ const ERC20_BALANCE_ABI = [
   },
 ];
 
+let cachedClient = null;
+
+function getClient() {
+  if (!cachedClient) {
+    cachedClient = createPublicClient({
+      chain: bsc,
+      transport: http(BSC_RPC_URL, { timeout: 6000, retryCount: 1 }),
+    });
+  }
+  return cachedClient;
+}
+
 /**
- * 用单个 RPC 查询余额
+ * 查询钱包 BNB 和 USDT 余额
+ * @param {string} privateKey
  */
-async function queryWithRpc(rpcUrl, address) {
-  const client = createPublicClient({
-    chain: bsc,
-    transport: http(rpcUrl, { timeout: 6000, retryCount: 0 }),
-  });
+export async function getWalletBalance(privateKey) {
+  const account = privateKeyToAccount(privateKey);
+  const address = account.address;
+  const client = getClient();
 
   const [bnbRaw, usdtRaw] = await Promise.all([
     client.getBalance({ address }),
@@ -43,22 +48,6 @@ async function queryWithRpc(rpcUrl, address) {
       args: [address],
     }),
   ]);
-
-  return { bnbRaw, usdtRaw };
-}
-
-/**
- * 查询钱包 BNB 和 USDT 余额（并发竞速，最快节点胜出）
- * @param {string} privateKey
- */
-export async function getWalletBalance(privateKey) {
-  const account = privateKeyToAccount(privateKey);
-  const address = account.address;
-
-  // 所有节点并发，用 Promise.any 取最快成功的
-  const { bnbRaw, usdtRaw } = await Promise.any(
-    BSC_RPC_URLS.map((url) => queryWithRpc(url, address))
-  );
 
   return {
     address,

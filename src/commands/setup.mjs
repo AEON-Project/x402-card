@@ -1,6 +1,5 @@
 import { loadConfig, saveConfig, getConfigPath } from "../config.mjs";
-import { privateKeyToAccount } from "viem/accounts";
-import { MIN_AMOUNT, MAX_AMOUNT } from "./create.mjs";
+import { MIN_AMOUNT, MAX_AMOUNT } from "../constants.mjs";
 
 export async function setup(opts) {
   const config = loadConfig();
@@ -18,6 +17,7 @@ export async function setup(opts) {
     const key = opts.privateKey.startsWith("0x") ? opts.privateKey : `0x${opts.privateKey}`;
     // 验证私钥格式
     try {
+      const { privateKeyToAccount } = await import("viem/accounts");
       const account = privateKeyToAccount(key);
       config.privateKey = key;
       config.address = account.address;

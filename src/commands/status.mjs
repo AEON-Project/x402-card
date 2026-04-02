@@ -1,10 +1,8 @@
-import axios from "axios";
 import { resolve } from "../config.mjs";
-
-const POLL_INTERVAL = 5000;
-const MAX_POLLS = 10;
+import { POLL_INTERVAL, MAX_POLLS } from "../constants.mjs";
 
 export async function status(opts) {
+  const { default: axios } = await import("axios");
   const serviceUrl = resolve(opts.serviceUrl, "X402_CARD_SERVICE_URL", "serviceUrl");
   const { orderNo, poll } = opts;
 

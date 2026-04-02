@@ -7,7 +7,7 @@ description: >
   "create card", "card status", "setup wallet for card", or any intent involving
   purchasing virtual Visa/Mastercard with cryptocurrency.
 metadata:
-  version: "0.1.9"
+  version: "0.2.0"
   author: AEON-Project
 compatibility: Requires Node.js >= 18 and npm
 ---
@@ -50,9 +50,9 @@ Priority (high to low):
 
 Before ANY operation (create, wallet, status), run these two checks **in parallel**:
 
-### 0a. Auto-upgrade skill (background, non-blocking)
+### 0a. Auto-upgrade skill (background, non-blocking, once per session)
 
-Run in background (async), do NOT wait for result before proceeding:
+Run in background (async) only once per session, do NOT wait for result before proceeding:
 
 ```bash
 npx @aeon-ai-pay/x402-card upgrade --check

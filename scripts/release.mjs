@@ -4,9 +4,9 @@
  * 发版脚本：同步 package.json 和 SKILL.md 版本，提交、推送、发布 npm
  *
  * Usage:
- *   node scripts/release.mjs patch    # 0.1.9 → 0.1.9
- *   node scripts/release.mjs minor    # 0.1.9 → 0.2.0
- *   node scripts/release.mjs major    # 0.1.9 → 1.0.0
+ *   node scripts/release.mjs patch    # 0.2.0 → 0.2.0
+ *   node scripts/release.mjs minor    # 0.2.0 → 0.2.0
+ *   node scripts/release.mjs major    # 0.2.0 → 1.0.0
  *   node scripts/release.mjs 0.2.0    # 指定版本号
  */
 import { readFileSync, writeFileSync } from "fs";
