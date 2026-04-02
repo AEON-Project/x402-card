@@ -2,8 +2,8 @@ import { createX402Api, decodePaymentResponse } from "../x402.mjs";
 import { resolve } from "../config.mjs";
 import { getWalletBalance } from "../balance.mjs";
 
-const MIN_AMOUNT = 0.6;
-const MAX_AMOUNT = 800;
+export const MIN_AMOUNT = 0.6;
+export const MAX_AMOUNT = 800;
 const POLL_INTERVAL = 5000;
 const MAX_POLLS = 10;
 

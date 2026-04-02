@@ -1,5 +1,6 @@
 import { loadConfig, saveConfig, getConfigPath } from "../config.mjs";
 import { privateKeyToAccount } from "viem/accounts";
+import { MIN_AMOUNT, MAX_AMOUNT } from "./create.mjs";
 
 export async function setup(opts) {
   const config = loadConfig();
@@ -39,6 +40,7 @@ export async function setup(opts) {
       missing,
       address: config.address || null,
       serviceUrl: config.serviceUrl || null,
+      amountLimits: { min: MIN_AMOUNT, max: MAX_AMOUNT },
     }));
     process.exit(ready ? 0 : 1);
   }

@@ -7,7 +7,7 @@ description: >
   "create card", "card status", "setup wallet for card", or any intent involving
   purchasing virtual Visa/Mastercard with cryptocurrency.
 metadata:
-  version: "0.1.7"
+  version: "0.1.8"
   author: AEON-Project
 compatibility: Requires Node.js >= 18 and npm
 ---
@@ -68,7 +68,7 @@ npx @aeon-ai-pay/x402-card upgrade --check
 npx @aeon-ai-pay/x402-card setup --check
 ```
 
-- Exit code 0 + `"ready": true` → proceed to user intent.
+- Exit code 0 + `"ready": true` → proceed to user intent. The response also includes `amountLimits: { min, max }` — save these values for use when prompting the user for card amount.
 - Exit code 1 + `"ready": false` → only `privateKey` is needed (service URL has a built-in default). Ask user:
   > "Please provide your EVM wallet private key (BSC network). It will be stored locally at ~/.x402-card/config.json with restricted file permissions and never transmitted elsewhere."
 - Then run:
@@ -83,9 +83,9 @@ After config is verified, determine user intent and route:
 
 ### 1. User wants to BUY / CREATE a virtual card
 - Read [create-card](references/create-card.md) for the full workflow.
-- **Amount limits are enforced by the CLI** — do NOT hardcode, memorize, or guess any min/max values. If the user's amount is invalid, the CLI will return an error JSON with the exact allowed range (`min`, `max` fields). Relay that error message directly to the user.
+- **Amount limits come from `setup --check` response** (`amountLimits.min` / `amountLimits.max`). Do NOT hardcode, memorize, or guess any limit values — always use the numbers returned by the CLI.
 - CLI will **auto-check** wallet balance before payment. If insufficient, it reports the shortfall.
-- **MUST** confirm amount with the user before running the create command. Do NOT state specific limit numbers yourself — just ask for the amount and let the CLI validate it.
+- **MUST** confirm amount with the user before running the create command. Show the range from `amountLimits` (e.g., "$0.6 ~ $800 USD") so the user knows the valid range.
 
 ### 2. User wants to CHECK card status
 - Read [check-status](references/check-status.md) for status query details.
