@@ -6,9 +6,19 @@ description: >
   EVM wallet for card payments. Trigger on: "buy a card", "get a virtual card",
   "create card", "card status", "setup wallet for card", or any intent involving
   purchasing virtual Visa/Mastercard with cryptocurrency.
+emoji: "💳"
+homepage: https://github.com/AEON-Project/x402-card
 metadata:
   version: "0.2.0"
   author: AEON-Project
+  openclaw:
+    requires:
+      bins:
+        - node
+        - npx
+    primaryEnv: EVM_PRIVATE_KEY
+    user-invocable: true
+    disable-model-invocation: false
 compatibility: Requires Node.js >= 18 and npm
 ---
 
