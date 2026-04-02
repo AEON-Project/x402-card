@@ -14,7 +14,7 @@ Before creating a card, verify:
 
 Ask the user how much they want to load onto the card.
 
-- Minimum: **$0.6 USD**
+- Amount limits are enforced by the CLI. Do NOT hardcode or state specific min/max numbers.
 - Currency: USD (the service handles crypto conversion)
 
 **MUST** get explicit confirmation before proceeding:
@@ -88,7 +88,7 @@ Save the `orderNo` for future status queries.
 
 | Scenario | Action |
 |----------|--------|
-| Amount < $0.6 | CLI rejects with error, inform user of minimum |
+| Amount out of range | CLI rejects with error JSON containing allowed range — relay to user |
 | Missing env vars | CLI shows which var is missing |
 | Insufficient USDT | Run `wallet` command to show balance |
 | Network error | Retry once, then report to user |

@@ -83,9 +83,9 @@ After config is verified, determine user intent and route:
 
 ### 1. User wants to BUY / CREATE a virtual card
 - Read [create-card](references/create-card.md) for the full workflow.
-- **Amount limit**: minimum $0.6, maximum $800 USD per card. IMPORTANT: Do NOT invent different limits — the exact range is $0.6 to $800.
+- **Amount limits are enforced by the CLI** — do NOT hardcode, memorize, or guess any min/max values. If the user's amount is invalid, the CLI will return an error JSON with the exact allowed range (`min`, `max` fields). Relay that error message directly to the user.
 - CLI will **auto-check** wallet balance before payment. If insufficient, it reports the shortfall.
-- **MUST** confirm amount with the user before running the create command. Show the exact limits: "$0.6 ~ $800 USD".
+- **MUST** confirm amount with the user before running the create command. Do NOT state specific limit numbers yourself — just ask for the amount and let the CLI validate it.
 
 ### 2. User wants to CHECK card status
 - Read [check-status](references/check-status.md) for status query details.
