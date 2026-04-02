@@ -15,7 +15,8 @@
   "scripts": {
     "create": "node bin/cli.mjs create",
     "status": "node bin/cli.mjs status",
-    "wallet": "node bin/cli.mjs wallet"
+    "wallet": "node bin/cli.mjs wallet",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@aeon-ai-pay/axios": "^2.1.0",
