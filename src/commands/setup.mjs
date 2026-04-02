@@ -28,6 +28,21 @@ export async function setup(opts) {
     }
   }
 
+  // --check: Agent 用来快速判断是否就绪（exit code 0=就绪, 1=未就绪）
+  if (opts.check) {
+    const ready = !!(config.serviceUrl && config.privateKey);
+    const missing = [];
+    if (!config.serviceUrl) missing.push("serviceUrl");
+    if (!config.privateKey) missing.push("privateKey");
+    console.log(JSON.stringify({
+      ready,
+      missing,
+      address: config.address || null,
+      serviceUrl: config.serviceUrl || null,
+    }));
+    process.exit(ready ? 0 : 1);
+  }
+
   if (opts.show) {
     // 显示当前配置（私钥脱敏）
     const display = { ...config };

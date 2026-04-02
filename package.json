@@ -22,7 +22,6 @@
     "@aeon-ai-pay/evm": "^2.1.0",
     "axios": "^1.13.2",
     "commander": "^13.0.0",
-    "dotenv": "^16.4.7",
     "viem": "^2.39.0"
   },
   "engines": {

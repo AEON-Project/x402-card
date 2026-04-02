@@ -1,7 +1,9 @@
 import { createX402Api, decodePaymentResponse } from "../x402.mjs";
 import { resolve } from "../config.mjs";
+import { getWalletBalance } from "../balance.mjs";
 
 const MIN_AMOUNT = 0.6;
+const MAX_AMOUNT = 800;
 const POLL_INTERVAL = 5000;
 const MAX_POLLS = 10;
 
@@ -9,7 +11,9 @@ export async function create(opts) {
   const serviceUrl = resolve(opts.serviceUrl, "X402_CARD_SERVICE_URL", "serviceUrl");
   const privateKey = resolve(opts.privateKey, "EVM_PRIVATE_KEY", "privateKey");
   const { amount, poll } = opts;
+  const amountNum = parseFloat(amount);
 
+  // 1. 参数校验
   if (!serviceUrl) {
     console.error(JSON.stringify({ error: "Missing service URL. Run: x402-card setup --service-url <url>" }));
     process.exit(1);
@@ -18,25 +22,56 @@ export async function create(opts) {
     console.error(JSON.stringify({ error: "Missing private key. Run: x402-card setup --private-key <0x...>" }));
     process.exit(1);
   }
-  if (parseFloat(amount) < MIN_AMOUNT) {
-    console.error(JSON.stringify({ error: `Amount must be at least $${MIN_AMOUNT}` }));
+
+  // 2. 限额校验
+  if (isNaN(amountNum) || amountNum < MIN_AMOUNT) {
+    console.error(JSON.stringify({ error: `Amount must be at least $${MIN_AMOUNT}`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
+    process.exit(1);
+  }
+  if (amountNum > MAX_AMOUNT) {
+    console.error(JSON.stringify({ error: `Amount must not exceed $${MAX_AMOUNT}`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
     process.exit(1);
   }
 
+  // 3. 前置余额检查
+  console.error("Checking wallet balance...");
+  try {
+    const { address, bnb, usdt, bnbRaw, usdtRaw } = await getWalletBalance(privateKey);
+    const usdtNum = parseFloat(usdt);
+
+    console.error(`Wallet: ${address}`);
+    console.error(`Balance: ${usdt} USDT, ${bnb} BNB`);
+
+    if (bnbRaw === 0n) {
+      console.error(JSON.stringify({ error: "No BNB for gas fees. Deposit BNB to your wallet first.", address }));
+      process.exit(1);
+    }
+
+    // USDT 需大于 amount（x402 协议会加唯一后缀，实际扣款略高于 amount 的 USDT 等值）
+    if (usdtNum < amountNum) {
+      console.error(JSON.stringify({
+        error: `Insufficient USDT balance`,
+        required: `${amountNum} USDT (approx)`,
+        available: `${usdt} USDT`,
+        shortfall: `${(amountNum - usdtNum).toFixed(6)} USDT`,
+        address,
+      }));
+      process.exit(1);
+    }
+  } catch (e) {
+    console.error(JSON.stringify({ error: `Balance check failed: ${e.message}` }));
+    process.exit(1);
+  }
+
+  // 4. 执行 x402 建卡
   const { api, address, getOrderNo } = createX402Api(privateKey);
   const url = `${serviceUrl}/open/ai/x402/card/create?amount=${amount}`;
 
-  console.error(`Wallet: ${address}`);
   console.error(`Creating card: $${amount} USD via ${url}`);
 
   try {
-    // x402 两阶段协议由 wrapAxiosWithPayment 自动处理：
-    // 1. 首次请求 → 收到 402 → 自动签名 → 自动重试
-    // 2. 带 PAYMENT-SIGNATURE 重试 → 收到 200
     const response = await api.get(url);
     const paymentResponse = decodePaymentResponse(response.headers);
-
-    // orderNo 来自 402 响应体（被拦截器捕获），不在 200 响应体中
     const orderNo = getOrderNo() || response.data?.model?.orderNo || response.data?.orderNo;
 
     const result = {
@@ -48,7 +83,6 @@ export async function create(opts) {
 
     console.log(JSON.stringify(result, null, 2));
 
-    // 自动轮询建卡状态
     if (poll && orderNo) {
       console.error(`\nPolling status for orderNo: ${orderNo}`);
       await pollStatus(serviceUrl, orderNo);

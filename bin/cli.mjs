@@ -19,6 +19,7 @@ program
   .option("--service-url <url>", "x402 card service URL")
   .option("--private-key <key>", "EVM private key (0x...)")
   .option("--show", "Show current configuration", false)
+  .option("--check", "Check if configured (exit 0=ready, 1=not ready)", false)
   .action(setup);
 
 program

@@ -9,11 +9,15 @@ import { homedir } from "os";
 const CONFIG_DIR = join(homedir(), ".x402-card");
 const CONFIG_FILE = join(CONFIG_DIR, "config.json");
 
+const DEFAULTS = {
+  serviceUrl: "https://aeon-qrpay-dev.alchemytech.cc",
+};
+
 export function loadConfig() {
   try {
-    return JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
+    return { ...DEFAULTS, ...JSON.parse(readFileSync(CONFIG_FILE, "utf-8")) };
   } catch {
-    return {};
+    return { ...DEFAULTS };
   }
 }
 

@@ -9,7 +9,7 @@ description: >
 metadata:
   version: "0.1.0"
   author: AEON-Project
-allowed-tools: Bash(npx:*) Bash(node:*) Read
+compatibility: Requires Node.js >= 18 and npm
 ---
 
 # x402 Virtual Card Skill
@@ -45,22 +45,48 @@ Config is stored at `~/.x402-card/config.json` (file permission 600). Three sour
 2. **Environment variables**: `X402_CARD_SERVICE_URL`, `EVM_PRIVATE_KEY`
 3. **Config file**: `~/.x402-card/config.json` (set via `setup` command)
 
+## Step 0: Always Check Config First
+
+Before ANY operation (create, wallet, status), run:
+
+```bash
+npx @aeon-project/x402-card setup --check
+```
+
+- Exit code 0 + `"ready": true` → proceed to user intent.
+- Exit code 1 + `"ready": false` → only `privateKey` is needed (service URL has a built-in default). Ask user:
+  > "Please provide your EVM wallet private key (BSC network). It will be stored locally at ~/.x402-card/config.json with restricted file permissions and never transmitted elsewhere."
+- Then run:
+  ```bash
+  npx @aeon-project/x402-card setup --private-key <key>
+  ```
+- Do NOT ask for service URL unless the user explicitly wants to change it.
+
 ## Decision Tree
 
-Determine user intent and route:
+After config is verified, determine user intent and route:
 
 ### 1. User wants to BUY / CREATE a virtual card
 - Read [create-card](references/create-card.md) for the full workflow.
-- **Minimum amount**: $0.6 USD.
+- **Amount limit**: $0.6 ~ $800 USD per card.
+- CLI will **auto-check** wallet balance before payment. If insufficient, it reports the shortfall.
 - **MUST** confirm amount with the user before running the create command.
 
 ### 2. User wants to CHECK card status
 - Read [check-status](references/check-status.md) for status query details.
 - Requires an `orderNo` from a previous creation.
 
-### 3. User wants to SETUP wallet
+### 3. User wants to SETUP or UPDATE config
 - Read [wallet-setup](references/wallet-setup.md) for configuring the EVM wallet.
 - Must be done before any card purchase.
+- To update, run `setup` with only the field to change:
+  ```bash
+  # Update service URL only
+  npx @aeon-project/x402-card setup --service-url <new-url>
+  # Update private key only
+  npx @aeon-project/x402-card setup --private-key <new-key>
+  ```
+- After update, run `setup --show` to confirm (private key is masked).
 
 ### 4. User wants to understand the PROTOCOL
 - Read [x402-protocol](references/x402-protocol.md) for how x402 works.
@@ -71,3 +97,23 @@ Determine user intent and route:
 - **NEVER** log or display the full private key. Mask it as `0x...last4`.
 - **NEVER** skip the wallet setup check before attempting a purchase.
 - **DO NOT** poll status more than 10 times. If still pending, inform the user and stop.
+
+## Insufficient Balance Handling
+
+When create returns `"error": "Insufficient USDT balance"`, present to user:
+
+```
+Wallet USDT balance is insufficient.
+- Required: {required}
+- Available: {available}
+- Shortfall: {shortfall}
+
+Please transfer at least {shortfall} USDT (BEP-20) to your wallet:
+  {address}
+
+Note: Send USDT on the BSC (BNB Smart Chain) network only. Transfers on other networks (ERC-20, TRC-20, etc.) will result in loss of funds.
+
+After depositing, run the card creation again.
+```
+
+Do NOT attempt to transfer funds on behalf of the user. Depositing is the user's responsibility.
