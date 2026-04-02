@@ -26,7 +26,7 @@ program
 program
   .command("create")
   .description("Create a virtual card by paying with USDT on BSC")
-  .requiredOption("--amount <usd>", "Card amount in USD (min 0.6)")
+  .requiredOption("--amount <usd>", "Card amount in USD ($0.6 ~ $800)")
   .option("--service-url <url>", "Override service URL")
   .option("--private-key <key>", "Override EVM private key")
   .option("--poll", "Auto-poll status after creation", false)

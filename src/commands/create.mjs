@@ -25,11 +25,11 @@ export async function create(opts) {
 
   // 2. 限额校验
   if (isNaN(amountNum) || amountNum < MIN_AMOUNT) {
-    console.error(JSON.stringify({ error: `Amount must be at least $${MIN_AMOUNT}`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
+    console.error(JSON.stringify({ error: `Amount must be at least $${MIN_AMOUNT}. Allowed range: $${MIN_AMOUNT} ~ $${MAX_AMOUNT} USD.`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
     process.exit(1);
   }
   if (amountNum > MAX_AMOUNT) {
-    console.error(JSON.stringify({ error: `Amount must not exceed $${MAX_AMOUNT}`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
+    console.error(JSON.stringify({ error: `Amount must not exceed $${MAX_AMOUNT}. Allowed range: $${MIN_AMOUNT} ~ $${MAX_AMOUNT} USD.`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
     process.exit(1);
   }
 
