@@ -5,6 +5,7 @@ import { create } from "../src/commands/create.mjs";
 import { status } from "../src/commands/status.mjs";
 import { wallet } from "../src/commands/wallet.mjs";
 import { setup } from "../src/commands/setup.mjs";
+import { upgrade } from "../src/commands/upgrade.mjs";
 
 const program = new Command();
 
@@ -44,5 +45,11 @@ program
   .description("Check EVM wallet balance (BNB + USDT on BSC)")
   .option("--private-key <key>", "Override EVM private key")
   .action(wallet);
+
+program
+  .command("upgrade")
+  .description("Check and upgrade skill to latest version from GitHub")
+  .option("--check", "Only check, do not upgrade", false)
+  .action(upgrade);
 
 program.parse();

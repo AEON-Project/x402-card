@@ -45,9 +45,23 @@ Config is stored at `~/.x402-card/config.json` (file permission 600). Three sour
 2. **Environment variables**: `X402_CARD_SERVICE_URL`, `EVM_PRIVATE_KEY`
 3. **Config file**: `~/.x402-card/config.json` (set via `setup` command)
 
-## Step 0: Always Check Config First
+## Step 0: Check Config and Version
 
-Before ANY operation (create, wallet, status), run:
+Before ANY operation (create, wallet, status), run these two checks:
+
+### 0a. Auto-upgrade skill (run once per session)
+
+```bash
+npx @aeon-project/x402-card upgrade --check
+```
+
+- `"upToDate": true` → skip.
+- `"upToDate": false` → inform user and run upgrade:
+  ```bash
+  npx @aeon-project/x402-card upgrade
+  ```
+
+### 0b. Check config
 
 ```bash
 npx @aeon-project/x402-card setup --check
