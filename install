@@ -12,7 +12,7 @@ Pick the option that matches your runtime:
 clawhub install x402-card
 ```
 
-Or install from the OpenClaw registry: [clawhub.ai/AEON-Project/x402-card](https://clawhub.ai/AEON-Project/x402-card)
+Or install from the OpenClaw registry: [clawhub.ai/yuanyongm/x402-card](https://clawhub.ai/yuanyongm/x402-card)
 
 ### If you are any other agent (Claude Code, Cursor, Codex, etc.)
 
