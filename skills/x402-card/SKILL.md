@@ -7,7 +7,7 @@ description: >
   "create card", "card status", "setup wallet for card", or any intent involving
   purchasing virtual Visa/Mastercard with cryptocurrency.
 metadata:
-  version: "0.1.2"
+  version: "0.1.3"
   author: AEON-Project
 compatibility: Requires Node.js >= 18 and npm
 ---
