@@ -74,6 +74,6 @@ export async function upgrade(opts) {
     execSync(`npx skills add ${REPO} -g -y`, { stdio: "inherit" });
     console.error("Upgrade complete.");
   } else if (!upToDate && opts.check) {
-    console.error(`Update available: ${localVersion} → ${remoteVersion}. Run: npx @aeon-project/x402-card upgrade`);
+    console.error(`Update available: ${localVersion} → ${remoteVersion}. Run: npx @aeon-ai-pay/x402-card upgrade`);
   }
 }

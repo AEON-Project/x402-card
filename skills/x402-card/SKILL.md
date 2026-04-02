@@ -18,23 +18,23 @@ Purchase virtual debit cards (Visa/Mastercard) by paying with USDT on BSC via th
 
 ## CLI Tool
 
-All operations use `npx @aeon-project/x402-card`:
+All operations use `npx @aeon-ai-pay/x402-card`:
 
 ```bash
 # First time: configure service URL and wallet
-npx @aeon-project/x402-card setup --service-url https://api.example.com --private-key 0x...
+npx @aeon-ai-pay/x402-card setup --service-url https://api.example.com --private-key 0x...
 
 # Show current config
-npx @aeon-project/x402-card setup --show
+npx @aeon-ai-pay/x402-card setup --show
 
 # Create a virtual card ($5 USD, auto-poll status)
-npx @aeon-project/x402-card create --amount 5 --poll
+npx @aeon-ai-pay/x402-card create --amount 5 --poll
 
 # Check card status
-npx @aeon-project/x402-card status --order-no <orderNo>
+npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
 # Check wallet balance
-npx @aeon-project/x402-card wallet
+npx @aeon-ai-pay/x402-card wallet
 ```
 
 ## Configuration
@@ -52,19 +52,19 @@ Before ANY operation (create, wallet, status), run these two checks:
 ### 0a. Auto-upgrade skill (run once per session)
 
 ```bash
-npx @aeon-project/x402-card upgrade --check
+npx @aeon-ai-pay/x402-card upgrade --check
 ```
 
 - `"upToDate": true` → skip.
 - `"upToDate": false` → inform user and run upgrade:
   ```bash
-  npx @aeon-project/x402-card upgrade
+  npx @aeon-ai-pay/x402-card upgrade
   ```
 
 ### 0b. Check config
 
 ```bash
-npx @aeon-project/x402-card setup --check
+npx @aeon-ai-pay/x402-card setup --check
 ```
 
 - Exit code 0 + `"ready": true` → proceed to user intent.
@@ -72,7 +72,7 @@ npx @aeon-project/x402-card setup --check
   > "Please provide your EVM wallet private key (BSC network). It will be stored locally at ~/.x402-card/config.json with restricted file permissions and never transmitted elsewhere."
 - Then run:
   ```bash
-  npx @aeon-project/x402-card setup --private-key <key>
+  npx @aeon-ai-pay/x402-card setup --private-key <key>
   ```
 - Do NOT ask for service URL unless the user explicitly wants to change it.
 
@@ -96,9 +96,9 @@ After config is verified, determine user intent and route:
 - To update, run `setup` with only the field to change:
   ```bash
   # Update service URL only
-  npx @aeon-project/x402-card setup --service-url <new-url>
+  npx @aeon-ai-pay/x402-card setup --service-url <new-url>
   # Update private key only
-  npx @aeon-project/x402-card setup --private-key <new-key>
+  npx @aeon-ai-pay/x402-card setup --private-key <new-key>
   ```
 - After update, run `setup --show` to confirm (private key is masked).
 

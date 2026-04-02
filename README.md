@@ -20,19 +20,19 @@ Supported agents: Claude Code, Cursor, Codex, OpenClaw, Gemini CLI, GitHub Copil
 
 ```bash
 # First time: configure service URL and wallet
-npx @aeon-project/x402-card setup --service-url https://api.example.com --private-key 0x...
+npx @aeon-ai-pay/x402-card setup --service-url https://api.example.com --private-key 0x...
 
 # Show current config
-npx @aeon-project/x402-card setup --show
+npx @aeon-ai-pay/x402-card setup --show
 
 # Create a virtual card ($5 USD, auto-poll status)
-npx @aeon-project/x402-card create --amount 5 --poll
+npx @aeon-ai-pay/x402-card create --amount 5 --poll
 
 # Check card status
-npx @aeon-project/x402-card status --order-no <orderNo>
+npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
 # Check wallet balance (BNB + USDT on BSC)
-npx @aeon-project/x402-card wallet
+npx @aeon-ai-pay/x402-card wallet
 ```
 
 ## Prerequisites

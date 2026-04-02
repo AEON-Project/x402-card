@@ -4,10 +4,10 @@
 
 ```bash
 # Single query
-npx @aeon-project/x402-card status --order-no <orderNo>
+npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
 # Poll until terminal status (SUCCESS or FAIL)
-npx @aeon-project/x402-card status --order-no <orderNo> --poll
+npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll
 ```
 
 ## Response Format

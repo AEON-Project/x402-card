@@ -6,7 +6,7 @@ Before creating a card, verify:
 
 1. `EVM_PRIVATE_KEY` is set — if not, guide user to [wallet-setup](wallet-setup.md)
 2. `X402_CARD_SERVICE_URL` is set — if not, ask user for the service URL
-3. Run `npx @aeon-project/x402-card wallet` to confirm sufficient USDT + BNB balance
+3. Run `npx @aeon-ai-pay/x402-card wallet` to confirm sufficient USDT + BNB balance
 
 ## Workflow
 
@@ -24,7 +24,7 @@ Ask the user how much they want to load onto the card.
 
 ```bash
 # Create card and auto-poll status
-npx @aeon-project/x402-card create --amount <amount> --poll
+npx @aeon-ai-pay/x402-card create --amount <amount> --poll
 ```
 
 The CLI handles the full x402 two-phase protocol automatically:

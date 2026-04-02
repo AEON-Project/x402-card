@@ -16,8 +16,8 @@ export EVM_PRIVATE_KEY="0x..."
 Or pass via CLI flags:
 
 ```bash
-npx @aeon-project/x402-card wallet --private-key 0x...
-npx @aeon-project/x402-card create --amount 5 --private-key 0x... --service-url https://...
+npx @aeon-ai-pay/x402-card wallet --private-key 0x...
+npx @aeon-ai-pay/x402-card create --amount 5 --private-key 0x... --service-url https://...
 ```
 
 **Security:**
@@ -27,7 +27,7 @@ npx @aeon-project/x402-card create --amount 5 --private-key 0x... --service-url 
 ## Step 2: Verify Wallet
 
 ```bash
-npx @aeon-project/x402-card wallet
+npx @aeon-ai-pay/x402-card wallet
 ```
 
 Output:

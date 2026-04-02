@@ -1,10 +1,10 @@
 {
-  "name": "@aeon-project/x402-card",
-  "version": "0.1.0",
+  "name": "@aeon-ai-pay/x402-card",
+  "version": "0.1.1",
   "description": "CLI & Agent skill for purchasing virtual debit cards via x402 protocol",
   "type": "module",
   "bin": {
-    "x402-card": "./bin/cli.mjs"
+    "x402-card": "bin/cli.mjs"
   },
   "files": [
     "bin",
