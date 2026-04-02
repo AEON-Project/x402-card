@@ -1,0 +1,44 @@
+{
+  "name": "@aeon-project/x402-card",
+  "version": "0.1.0",
+  "description": "CLI & Agent skill for purchasing virtual debit cards via x402 protocol",
+  "type": "module",
+  "bin": {
+    "x402-card": "./bin/cli.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "skills",
+    "README.md"
+  ],
+  "scripts": {
+    "create": "node bin/cli.mjs create",
+    "status": "node bin/cli.mjs status",
+    "wallet": "node bin/cli.mjs wallet"
+  },
+  "dependencies": {
+    "@aeon-ai-pay/axios": "^2.1.0",
+    "@aeon-ai-pay/evm": "^2.1.0",
+    "axios": "^1.13.2",
+    "commander": "^13.0.0",
+    "dotenv": "^16.4.7",
+    "viem": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "agent-skills",
+    "x402",
+    "virtual-card",
+    "crypto-payment",
+    "evm",
+    "bsc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AEON-Project/x402-card.git"
+  },
+  "license": "MIT"
+}
