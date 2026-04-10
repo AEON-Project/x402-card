@@ -76,12 +76,13 @@ program
   });
 
 program
-  .command("upgrade")
-  .description("Check and upgrade skill to latest version from GitHub")
-  .option("--check", "Only check, do not upgrade", false)
+  .command("withdraw")
+  .description("Withdraw USDT from session key back to main wallet")
+  .option("--amount <usdt>", "USDT amount to withdraw (default: all)")
+  .option("--to <address>", "Override destination address")
   .action(async (opts) => {
-    const { upgrade } = await import("../src/commands/upgrade.mjs");
-    return upgrade(opts);
+    const { withdraw } = await import("../src/commands/withdraw.mjs");
+    return withdraw(opts);
   });
 
 program.parse();

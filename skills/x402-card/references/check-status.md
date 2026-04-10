@@ -1,16 +1,16 @@
-# Check Card Status
+# 查询卡片状态
 
-## Command
+## 命令
 
 ```bash
-# Single query
+# 单次查询
 npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
-# Poll until terminal status (SUCCESS or FAIL)
+# 轮询直到终态（SUCCESS 或 FAIL）
 npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll
 ```
 
-## Response Format
+## 响应格式
 
 ```json
 {
@@ -31,38 +31,38 @@ npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll
 }
 ```
 
-## Status Values
+## 状态值
 
-### orderStatus
+### orderStatus（订单状态）
 
-| Status | Meaning | Action |
-|--------|---------|--------|
-| `INIT` | Order created, no payment yet | Wait |
-| `PENDING` | Payment submitted, chain confirming | Poll again |
-| `SUCCESS` | Card created | Show card details |
-| `FAIL` | Failed | Show error, suggest retry |
+| 状态 | 含义 | 操作 |
+|------|------|------|
+| `INIT` | 订单已创建，尚未支付 | 等待 |
+| `PENDING` | 支付已提交，链上确认中 | 继续轮询 |
+| `SUCCESS` | 卡片创建成功 | 展示卡片详情 |
+| `FAIL` | 失败 | 显示错误，建议重试 |
 
-### channelStatus
+### channelStatus（渠道状态）
 
-| Status | Meaning |
-|--------|---------|
-| `INIT` | Not sent to card provider |
-| `PROCESSING` | Provider creating card |
-| `COMPLETED` | Card ready |
-| `FAILED` | Card creation failed |
+| 状态 | 含义 |
+|------|------|
+| `INIT` | 尚未发送到卡片供应商 |
+| `PROCESSING` | 供应商正在创建卡片 |
+| `COMPLETED` | 卡片已就绪 |
+| `FAILED` | 卡片创建失败 |
 
-### cardStatus
+### cardStatus（卡片状态）
 
-| Status | Meaning |
-|--------|---------|
-| `PENDING` | Provisioning |
-| `ACTIVE` | Ready to use |
-| `FROZEN` | Suspended |
-| `CANCELLED` | Closed |
+| 状态 | 含义 |
+|------|------|
+| `PENDING` | 配置中 |
+| `ACTIVE` | 可以使用 |
+| `FROZEN` | 已冻结 |
+| `CANCELLED` | 已注销 |
 
-## Polling Behavior
+## 轮询行为
 
-With `--poll`:
-- Polls every **5 seconds**, max **10 attempts** (50s total)
-- Stops on `SUCCESS` or `FAIL`
-- If timeout, inform user and provide manual check command
+使用 `--poll` 时：
+- 每 **5 秒**轮询一次，最多 **10 次**（共 50 秒）
+- 在 `SUCCESS` 或 `FAIL` 时停止
+- 如果超时，通知用户并提供手动查询命令

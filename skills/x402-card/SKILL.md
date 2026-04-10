@@ -1,15 +1,17 @@
 ---
 name: x402-card
 description: >
-  Use this skill when the user wants to purchase a virtual debit card using crypto,
-  create a prepaid card via x402 protocol, check virtual card status, or set up an
-  EVM wallet for card payments. Trigger on: "buy a card", "get a virtual card",
-  "create card", "card status", "setup wallet for card", or any intent involving
-  purchasing virtual Visa/Mastercard with cryptocurrency.
+  当用户表达出创建、管理或查询虚拟卡的意图时，触发此技能。
+  这包括以下意图：
+  - “获取一张虚拟卡”
+  - “制作一张卡片”
+  - “卡片状态”
+  “为代理人设置一张卡片”
+  此外，任何涉及为代理使用而创建以加密货币充值的一次性虚拟Visa/Mastercard的请求。
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.2.7"
+  version: "0.3.0"
   author: AEON-Project
   openclaw:
     requires:
@@ -19,125 +21,114 @@ metadata:
     primaryEnv: X402_CARD_SERVICE_URL
     user-invocable: true
     disable-model-invocation: false
-compatibility: Requires Node.js >= 18 and npm
+compatibility: 需要 Node.js >= 18 和 npm
 ---
 
-# x402 Virtual Card Skill
+# x402 虚拟卡技能
 
-Purchase virtual debit cards (Visa/Mastercard) by paying with USDT on BSC via the x402 HTTP payment protocol.
+通过 x402 HTTP 支付协议，使用 BSC 链上的 USDT 购买虚拟借记卡（Visa/Mastercard）。
 
-## CLI Tool
+## 命令行工具
 
-All operations use `npx @aeon-ai-pay/x402-card`:
+所有操作使用 `npx @aeon-ai-pay/x402-card`：
 
 ```bash
-# Connect wallet via WalletConnect (no private key stored)
+# 通过 WalletConnect 连接钱包（不存储私钥）
 npx @aeon-ai-pay/x402-card connect --amount 50
 
-# Show current config
+# 查看当前配置
 npx @aeon-ai-pay/x402-card setup --show
 
-# Create a virtual card ($5 USD, auto-poll status)
+# 创建虚拟卡（$5 美元，自动轮询状态）
 npx @aeon-ai-pay/x402-card create --amount 5 --poll
 
-# Check card status
+# 查询卡片状态
 npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
-# Check wallet balance
+# 查看钱包余额
 npx @aeon-ai-pay/x402-card wallet
 
-# Top up session key balance
+# 为 session key 充值
 npx @aeon-ai-pay/x402-card topup --amount 50
+
+# 将剩余 USDT 提回主钱包
+npx @aeon-ai-pay/x402-card withdraw
 ```
 
-## Configuration
+## 配置说明
 
-Config is stored at `~/.x402-card/config.json` (file permission 600).
+配置存储在 `~/.x402-card/config.json`（文件权限 600）。
 
-Uses WalletConnect to connect user's wallet and fund a local session key. Main wallet private key is **NEVER** stored locally. **NEVER ask user for a private key.**
+使用 WalletConnect 连接用户钱包并为本地 session key 注资。主钱包私钥**绝不会**存储在本地。**绝不向用户索要私钥。**
 
-## Step 0: Pre-flight Checks
+## 步骤 0：预检查
 
-Before ANY operation (create, wallet, status), run these two checks **in parallel**:
-
-### 0a. Auto-upgrade skill (background, non-blocking, once per session)
-
-Run in background (async) only once per session, do NOT wait for result before proceeding:
-
-```bash
-npx @aeon-ai-pay/x402-card upgrade --check
-```
-
-- `"upToDate": true` → ignore.
-- `"upToDate": false` → when result arrives, inform user and run upgrade:
-  ```bash
-  npx @aeon-ai-pay/x402-card upgrade
-  ```
-- Network failure → ignore silently.
-
-### 0b. Check config (foreground, blocking)
+在执行任何操作（create、wallet、status）之前，运行配置检查：
 
 ```bash
 npx @aeon-ai-pay/x402-card setup --check
 ```
 
-- Exit code 0 + `"ready": true` → proceed to user intent. The response includes `amountLimits: { min, max }` — use these when prompting the user for card amount. Also check `mode` field to know which mode is active.
-- Exit code 1 + `"ready": false` → wallet not configured. Run `connect` to set up via WalletConnect:
-  > "I'll help you connect your wallet via WalletConnect. Your main wallet private key will NOT be stored locally."
-  Ask how much USDT to fund the session key (default $50), then run:
+- 退出码 0 + `"ready": true` → 继续执行用户意图。响应中包含 `amountLimits: { min, max }`，提示用户卡片金额时使用这些值。同时检查 `mode` 字段。
+- 退出码 1 + `"ready": false` → 钱包未配置。通过 WalletConnect 执行 `connect` 命令进行设置：
+  > "我来帮你通过 WalletConnect 连接钱包。你的主钱包私钥不会存储在本地。"
+  询问用户要为 session key 充入多少 USDT（默认 $1），然后运行：
   ```bash
   npx @aeon-ai-pay/x402-card connect --amount <usdt>
   ```
-  The command will display a QR code in terminal. Ask user to scan with their wallet app (MetaMask, Trust Wallet, etc.) and approve 2 transactions (USDT + BNB transfer).
-- **NEVER ask user for a private key. Always use `connect` command.**
-- Do NOT ask for service URL unless the user explicitly wants to change it.
+  该命令会在浏览器中打开 QR 码页面。用户用钱包 App（MetaMask、Trust Wallet 等）扫码连接后，确认 2 笔交易（USDT + BNB 转账），命令完成并输出成功 JSON。
+  **重要：** 此命令为交互式，最长需要 120 秒。不要在后台运行。
+- **绝不向用户索要私钥。始终使用 `connect` 命令。**
+- 除非用户主动要求，否则不要询问 service URL。
 
-## Decision Tree
+## 决策树
 
-After config is verified, determine user intent and route:
+配置验证通过后，根据用户意图进行路由：
 
-### 1. User wants to BUY / CREATE a virtual card
-- Read [create-card](references/create-card.md) for the full workflow.
-- **Amount limits come from `setup --check` response** (`amountLimits.min` / `amountLimits.max`). Do NOT hardcode, memorize, or guess any limit values — always use the numbers returned by the CLI.
-- CLI `create` command validates the amount and returns error JSON with allowed range if invalid.
-- CLI will **auto-check** wallet balance before payment. If insufficient, it reports the shortfall.
-- **MUST** confirm amount with the user before running the create command. Show the range from `amountLimits` so the user knows the valid range.
+### 1. 用户想要购买/创建虚拟卡
+- 阅读 [create-card](references/create-card.md) 了解完整流程。
+- **金额限制来自 `setup --check` 响应**（`amountLimits.min` / `amountLimits.max`）。不要硬编码、记忆或猜测任何限额值，始终使用 CLI 返回的数字。
+- CLI 的 `create` 命令会验证金额，如果无效则返回包含允许范围的错误 JSON。
+- CLI 会在支付前**自动检查**钱包余额。如果不足，会报告差额。
+- **必须**在执行创建命令前向用户确认金额。展示 `amountLimits` 中的范围让用户了解有效区间。
 
-### 2. User wants to CHECK card status
-- Read [check-status](references/check-status.md) for status query details.
-- Requires an `orderNo` from a previous creation.
+### 2. 用户想要查询卡片状态
+- 阅读 [check-status](references/check-status.md) 了解状态查询详情。
+- 需要之前创建时获得的 `orderNo`。
 
-### 3. User wants to SETUP or CONNECT wallet
-- Read [wallet-setup](references/wallet-setup.md) for connecting the wallet via WalletConnect.
-- Must be done before any card purchase.
-- Always use `connect` command. Never ask for private key.
-
-### 4. User wants to TOP UP session key
-- Only applicable in session-key mode. Run:
+### 3. 用户想要为 session key 充值
+- 运行：
   ```bash
   npx @aeon-ai-pay/x402-card topup --amount <usdt>
   ```
-  This re-opens WalletConnect for a one-shot funding transfer.
+  重新打开 WalletConnect 进行一次性资金转入。
 
-### 5. User wants to understand the PROTOCOL
-- Read [x402-protocol](references/x402-protocol.md) for how x402 works.
+### 4. 用户想要从 session key 提取资金
+- 运行：
+  ```bash
+  npx @aeon-ai-pay/x402-card withdraw
+  ```
+  将 session key 中的所有 USDT 转回主钱包。使用 `--amount <usdt>` 可提取指定金额。
 
-## Anti-patterns
+### 5. 用户想要了解协议
+- 阅读 [x402-protocol](references/x402-protocol.md) 了解 x402 协议的工作原理。
 
-- **NEVER** ask user for a private key. Always use `connect` (WalletConnect) to set up wallet.
-- **NEVER** proceed with payment without explicit user confirmation of the amount.
-- **NEVER** log or display the full private key. Mask it as `0x...last4`.
-- **NEVER** skip the wallet setup check before attempting a purchase.
-- **DO NOT** poll status more than 10 times. If still pending, inform the user and stop.
+## 禁止行为
 
-## Insufficient Balance Handling
+- **绝不**向用户索要私钥。始终使用 `connect`（WalletConnect）来设置钱包。
+- **绝不**在未经用户明确确认金额的情况下进行支付。
+- **绝不**记录或显示完整私钥。显示为 `0x...last4` 格式。
+- **绝不**跳过钱包配置检查就尝试购卡。
+- **不要**轮询状态超过 10 次。如果仍在处理中，通知用户并停止。
 
-When create returns `"error": "Insufficient USDT balance"`:
+## 余额不足处理
+
+当 create 返回 `"error": "Insufficient USDT balance"` 时：
 
 ```
-Session key USDT balance is insufficient.
-- Required: {required}
-- Available: {available}
+Session key USDT 余额不足。
+- 需要: {required}
+- 可用: {available}
 
-Run 'x402-card topup --amount <usdt>' to add funds via WalletConnect.
+运行 'x402-card topup --amount <usdt>' 通过 WalletConnect 充值。
 ```

@@ -1,43 +1,43 @@
-# Create Virtual Card
+# 创建虚拟卡
 
-## Prerequisites Check
+## 前提检查
 
-Before creating a card, verify:
+创建卡片前，确认以下事项：
 
-1. Wallet is configured — run `setup --check`. If not ready, run `connect` to set up via WalletConnect. See [wallet-setup](wallet-setup.md).
-2. Service URL is configured (has built-in default, no action needed unless user wants to override)
-3. The `create` command automatically checks wallet balance before proceeding. No need to run `wallet` separately.
+1. 钱包已配置 — 运行 `setup --check`。如未就绪，运行 `connect` 通过 WalletConnect 设置。
+2. Service URL 已配置（有内置默认值，无需操作，除非用户想要覆盖）
+3. `create` 命令会在支付前自动检查钱包余额，无需单独运行 `wallet`。
 
-## Workflow
+## 工作流程
 
-### Step 1: Confirm Amount
+### 步骤 1：确认金额
 
-Ask the user how much they want to load onto the card.
+询问用户要充值多少到虚拟卡。
 
-- Amount limits are enforced by the CLI. Do NOT hardcode or state specific min/max numbers.
-- Currency: USD (the service handles crypto conversion)
+- 金额限制由 CLI 强制执行。不要硬编码或说出具体的最小/最大数字。
+- 货币：USD（服务端处理加密货币兑换）
 
-**MUST** get explicit confirmation before proceeding:
-> "I'll create a virtual card loaded with $X.XX. This will debit approximately X.XX USDT from your BSC wallet. Proceed?"
+**必须**在执行前获得用户明确确认：
+> "我将创建一张充值 $X.XX 的虚拟卡。这将从你的 BSC 钱包扣除约 X.XX USDT。确认继续？"
 
-### Step 2: Execute
+### 步骤 2：执行
 
 ```bash
-# Create card and auto-poll status
+# 创建卡片并自动轮询状态
 npx @aeon-ai-pay/x402-card create --amount <amount> --poll
 ```
 
-The CLI handles the full x402 two-phase protocol automatically:
-1. Sends `GET /open/ai/x402/card/create?amount=X` → receives HTTP 402
-2. Parses payment requirements, signs with EVM wallet (EIP-712)
-3. Retries with `PAYMENT-SIGNATURE` header → receives HTTP 200
-4. With `--poll`, auto-polls `/status` every 5s until card is ready
+CLI 自动处理完整的 x402 两阶段协议：
+1. 发送 `GET /open/ai/x402/card/create?amount=X` → 收到 HTTP 402
+2. 解析支付要求，使用 EVM 钱包签名（EIP-712）
+3. 附带 `PAYMENT-SIGNATURE` 头重试请求 → 收到 HTTP 200
+4. 使用 `--poll` 时，每 5 秒自动轮询 `/status` 直到卡片就绪
 
-### Step 3: Parse Result
+### 步骤 3：解析结果
 
-**stdout** outputs JSON (parseable), **stderr** outputs progress logs.
+**stdout** 输出 JSON（可解析），**stderr** 输出进度日志。
 
-Success output:
+成功输出：
 ```json
 {
   "success": true,
@@ -53,7 +53,7 @@ Success output:
 }
 ```
 
-With `--poll`, additional output when card is ready:
+使用 `--poll` 时，卡片就绪后的额外输出：
 ```json
 {
   "pollResult": {
@@ -71,25 +71,25 @@ With `--poll`, additional output when card is ready:
 }
 ```
 
-### Step 4: Present to User
+### 步骤 4：展示给用户
 
-When successful:
+成功时：
 ```
-Virtual Card Created!
-- Card: VISA •••• 4321
-- Balance: $5.00 USD
-- Order: 300217748668047431791
-- Tx: 0xabc...def
+虚拟卡创建成功！
+- 卡片: VISA •••• 4321
+- 余额: $5.00 USD
+- 订单号: 300217748668047431791
+- 交易: 0xabc...def
 ```
 
-Save the `orderNo` for future status queries.
+保存 `orderNo` 用于后续状态查询。
 
-## Error Handling
+## 错误处理
 
-| Scenario | Action |
-|----------|--------|
-| Amount out of range | CLI rejects with error JSON containing allowed range — relay to user |
-| Wallet not configured | Run `connect --amount <usdt>` to set up via WalletConnect |
-| Insufficient USDT | Run `topup --amount <usdt>` to add funds via WalletConnect |
-| Network error | Retry once, then report to user |
-| Transaction reverted | Show txHash, suggest user check BSCScan |
+| 场景 | 处理方式 |
+|------|---------|
+| 金额超出范围 | CLI 返回包含允许范围的错误 JSON — 转达给用户 |
+| 钱包未配置 | 运行 `connect --amount <usdt>` 通过 WalletConnect 设置 |
+| USDT 不足 | 运行 `topup --amount <usdt>` 通过 WalletConnect 充值 |
+| 网络错误 | 重试一次，然后报告给用户 |
+| 交易回滚 | 显示 txHash，建议用户在 BSCScan 上查看 |
