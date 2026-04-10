@@ -16,7 +16,7 @@ metadata:
       bins:
         - node
         - npx
-    primaryEnv: EVM_PRIVATE_KEY
+    primaryEnv: X402_CARD_SERVICE_URL
     user-invocable: true
     disable-model-invocation: false
 compatibility: Requires Node.js >= 18 and npm
@@ -31,11 +31,8 @@ Purchase virtual debit cards (Visa/Mastercard) by paying with USDT on BSC via th
 All operations use `npx @aeon-ai-pay/x402-card`:
 
 ```bash
-# Recommended: Connect wallet via WalletConnect (no private key stored)
+# Connect wallet via WalletConnect (no private key stored)
 npx @aeon-ai-pay/x402-card connect --amount 50
-
-# Legacy: Provide EVM wallet private key directly
-npx @aeon-ai-pay/x402-card setup --private-key 0x...
 
 # Show current config
 npx @aeon-ai-pay/x402-card setup --show
@@ -57,14 +54,7 @@ npx @aeon-ai-pay/x402-card topup --amount 50
 
 Config is stored at `~/.x402-card/config.json` (file permission 600).
 
-Two modes:
-- **session-key** (recommended): Via `connect` command. Uses WalletConnect to fund a local session key. Main wallet private key is NEVER stored.
-- **private-key** (legacy): Via `setup` command. Stores private key locally.
-
-Priority (high to low):
-1. **CLI flags**: `--private-key`, `--service-url`
-2. **Environment variables**: `EVM_PRIVATE_KEY`, `X402_CARD_SERVICE_URL`
-3. **Config file**: `~/.x402-card/config.json`
+Uses WalletConnect to connect user's wallet and fund a local session key. Main wallet private key is **NEVER** stored locally. **NEVER ask user for a private key.**
 
 ## Step 0: Pre-flight Checks
 
@@ -92,19 +82,14 @@ npx @aeon-ai-pay/x402-card setup --check
 ```
 
 - Exit code 0 + `"ready": true` → proceed to user intent. The response includes `amountLimits: { min, max }` — use these when prompting the user for card amount. Also check `mode` field to know which mode is active.
-- Exit code 1 + `"ready": false` → wallet not configured. Guide user through setup:
-  1. **Recommended: WalletConnect (session key mode)**
-     > "I'll help you connect your wallet via WalletConnect. This is the recommended approach — your main wallet private key will NOT be stored locally."
-     Ask how much USDT to fund the session key (default $50), then run:
-     ```bash
-     npx @aeon-ai-pay/x402-card connect --amount <usdt>
-     ```
-     The command will display a QR code in terminal. Ask user to scan with their wallet app (MetaMask, Trust Wallet, etc.) and approve 2 transactions (USDT + BNB transfer).
-  2. **Fallback: Direct private key**
-     Only if user explicitly prefers or cannot use WalletConnect:
-     ```bash
-     npx @aeon-ai-pay/x402-card setup --private-key <key>
-     ```
+- Exit code 1 + `"ready": false` → wallet not configured. Run `connect` to set up via WalletConnect:
+  > "I'll help you connect your wallet via WalletConnect. Your main wallet private key will NOT be stored locally."
+  Ask how much USDT to fund the session key (default $50), then run:
+  ```bash
+  npx @aeon-ai-pay/x402-card connect --amount <usdt>
+  ```
+  The command will display a QR code in terminal. Ask user to scan with their wallet app (MetaMask, Trust Wallet, etc.) and approve 2 transactions (USDT + BNB transfer).
+- **NEVER ask user for a private key. Always use `connect` command.**
 - Do NOT ask for service URL unless the user explicitly wants to change it.
 
 ## Decision Tree
@@ -122,9 +107,10 @@ After config is verified, determine user intent and route:
 - Read [check-status](references/check-status.md) for status query details.
 - Requires an `orderNo` from a previous creation.
 
-### 3. User wants to SETUP or UPDATE config
-- Read [wallet-setup](references/wallet-setup.md) for configuring the EVM wallet.
+### 3. User wants to SETUP or CONNECT wallet
+- Read [wallet-setup](references/wallet-setup.md) for connecting the wallet via WalletConnect.
 - Must be done before any card purchase.
+- Always use `connect` command. Never ask for private key.
 
 ### 4. User wants to TOP UP session key
 - Only applicable in session-key mode. Run:
@@ -138,6 +124,7 @@ After config is verified, determine user intent and route:
 
 ## Anti-patterns
 
+- **NEVER** ask user for a private key. Always use `connect` (WalletConnect) to set up wallet.
 - **NEVER** proceed with payment without explicit user confirmation of the amount.
 - **NEVER** log or display the full private key. Mask it as `0x...last4`.
 - **NEVER** skip the wallet setup check before attempting a purchase.
@@ -145,9 +132,8 @@ After config is verified, determine user intent and route:
 
 ## Insufficient Balance Handling
 
-When create returns `"error": "Insufficient USDT balance"`, handle based on mode:
+When create returns `"error": "Insufficient USDT balance"`:
 
-**Session-key mode:**
 ```
 Session key USDT balance is insufficient.
 - Required: {required}
@@ -155,20 +141,3 @@ Session key USDT balance is insufficient.
 
 Run 'x402-card topup --amount <usdt>' to add funds via WalletConnect.
 ```
-
-**Private-key mode:**
-```
-Wallet USDT balance is insufficient.
-- Required: {required}
-- Available: {available}
-- Shortfall: {shortfall}
-
-Please transfer at least {shortfall} USDT (BEP-20) to your wallet:
-  {address}
-
-Note: Send USDT on the BSC (BNB Smart Chain) network only. Transfers on other networks (ERC-20, TRC-20, etc.) will result in loss of funds.
-
-After depositing, run the card creation again.
-```
-
-Do NOT attempt to transfer funds on behalf of the user. Depositing is the user's responsibility.

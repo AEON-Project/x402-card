@@ -33,18 +33,19 @@ export async function setup(opts) {
   // --check: Agent 用来快速判断是否就绪（exit code 0=就绪, 1=未就绪）
   if (opts.check) {
     const ready = !!(config.serviceUrl && config.privateKey);
-    const missing = [];
-    if (!config.serviceUrl) missing.push("serviceUrl");
-    if (!config.privateKey) missing.push("privateKey");
-    console.log(JSON.stringify({
+    const result = {
       ready,
-      missing,
-      mode: config.mode || "private-key",
+      mode: config.mode || null,
       address: config.address || null,
       mainWallet: config.mainWallet || null,
       serviceUrl: config.serviceUrl || null,
       amountLimits: { min: MIN_AMOUNT, max: MAX_AMOUNT },
-    }));
+    };
+    if (!ready) {
+      result.setupRequired = "wallet";
+      result.setupHint = "Run 'npx @aeon-ai-pay/x402-card connect --amount <usdt>' to connect wallet via WalletConnect (recommended), or 'setup --private-key <0x...>' as fallback.";
+    }
+    console.log(JSON.stringify(result));
     process.exit(ready ? 0 : 1);
   }
 

@@ -1,8 +1,6 @@
 # Wallet Setup
 
-## Two Setup Methods
-
-### Method 1: WalletConnect (Recommended)
+## Connect via WalletConnect
 
 Connect your existing wallet via WalletConnect. Your main wallet private key is **never stored locally**.
 
@@ -21,23 +19,10 @@ npx @aeon-ai-pay/x402-card connect --amount 50
 **Options:**
 - `--amount <usdt>` — USDT to fund (default: 50)
 - `--gas <bnb>` — BNB for gas fees (default: 0.001)
-- `--project-id <id>` — WalletConnect project ID (has built-in default)
 
 **Requirements:**
 - A mobile wallet app that supports WalletConnect (MetaMask, Trust Wallet, etc.)
 - USDT (BEP-20) + small BNB in the wallet for funding
-
-### Method 2: Direct Private Key (Legacy)
-
-```bash
-npx @aeon-ai-pay/x402-card setup --private-key 0x...
-```
-
-Service URL has a built-in default — no need to configure unless you want to override.
-
-**Security:**
-- NEVER commit `.env` or private keys to git
-- Use a dedicated wallet, not a personal wallet with large holdings
 
 ## Verify Wallet
 
@@ -45,7 +30,7 @@ Service URL has a built-in default — no need to configure unless you want to o
 npx @aeon-ai-pay/x402-card wallet
 ```
 
-Output (session-key mode):
+Output:
 ```json
 {
   "mode": "session-key",
@@ -75,9 +60,8 @@ This re-opens WalletConnect to transfer additional USDT. Add `--gas` flag to als
 
 | Issue | Solution |
 |-------|----------|
-| Not configured | Run `connect` (recommended) or `setup --private-key` |
-| USDT = 0 (session-key) | Run `topup --amount <usdt>` |
-| USDT = 0 (private-key) | Transfer USDT (BEP-20) to wallet address |
-| BNB = 0 | Transfer BNB for gas fees, or `topup --gas` |
+| Not configured | Run `connect --amount <usdt>` |
+| USDT = 0 | Run `topup --amount <usdt>` |
+| BNB = 0 | Run `topup --gas` |
 | Wrong network | Ensure BSC mainnet, not testnet |
 | WalletConnect timeout | Scan QR within 120 seconds, retry with `connect` |
