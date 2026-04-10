@@ -89,7 +89,7 @@ Save the `orderNo` for future status queries.
 | Scenario | Action |
 |----------|--------|
 | Amount out of range | CLI rejects with error JSON containing allowed range — relay to user |
-| Missing env vars | CLI shows which var is missing |
-| Insufficient USDT | Run `wallet` command to show balance |
+| Wallet not configured | Run `connect --amount <usdt>` to set up via WalletConnect |
+| Insufficient USDT | Run `topup --amount <usdt>` to add funds via WalletConnect |
 | Network error | Retry once, then report to user |
 | Transaction reverted | Show txHash, suggest user check BSCScan |

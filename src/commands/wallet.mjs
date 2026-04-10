@@ -5,7 +5,7 @@ export async function wallet(opts) {
   const privateKey = resolve(opts.privateKey, "EVM_PRIVATE_KEY", "privateKey");
 
   if (!privateKey) {
-    console.error(JSON.stringify({ error: "Missing private key. Run: x402-card connect or x402-card setup --private-key <0x...>" }));
+    console.error(JSON.stringify({ error: "Wallet not configured. Run: x402-card connect --amount <usdt>" }));
     process.exit(1);
   }
 

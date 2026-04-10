@@ -19,11 +19,8 @@ Supported agents: Claude Code, Cursor, Codex, OpenClaw, Gemini CLI, GitHub Copil
 ## CLI Usage
 
 ```bash
-# First time: provide your EVM wallet private key
-npx @aeon-ai-pay/x402-card setup --private-key 0x...
-
-# Show current config
-npx @aeon-ai-pay/x402-card setup --show
+# First time: connect wallet via WalletConnect (private key is NEVER stored)
+npx @aeon-ai-pay/x402-card connect --amount 50
 
 # Create a virtual card ($5 USD, auto-poll status)
 npx @aeon-ai-pay/x402-card create --amount 5 --poll
@@ -33,31 +30,40 @@ npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
 # Check wallet balance (BNB + USDT on BSC)
 npx @aeon-ai-pay/x402-card wallet
+
+# Top up session key when balance is low
+npx @aeon-ai-pay/x402-card topup --amount 50
+
+# Show current config
+npx @aeon-ai-pay/x402-card setup --show
 ```
 
 ## Prerequisites
 
 - Node.js >= 18
-- An EVM wallet with USDT (BEP-20) on BSC
+- A mobile wallet app supporting WalletConnect (MetaMask, Trust Wallet, etc.)
+- USDT (BEP-20) on BSC for card purchases
 - Small BNB for gas fees (~$0.01 per tx)
 
 ## How it works
 
 ```
-User intent -> Agent activates skill -> x402 two-phase protocol:
-  1. GET /create?amount=X         -> HTTP 402 + payment requirements
-  2. EVM sign & retry             -> HTTP 200 + payment confirmed
-  3. Poll /status?orderNo=X       -> Card details when ready
+1. Connect wallet via WalletConnect (scan QR code, approve funding)
+2. CLI generates a local session key, funded by your main wallet
+3. Session key signs x402 payments automatically — no manual approval needed
+
+Agent flow:
+  User intent -> Agent activates skill -> x402 two-phase protocol:
+    1. GET /create?amount=X         -> HTTP 402 + payment requirements
+    2. Session key signs & retry    -> HTTP 200 + payment confirmed
+    3. Poll /status?orderNo=X       -> Card details when ready
 ```
 
 ## Configuration
 
-Only `--private-key` is required. Service URL has a built-in default.
+Config is stored at `~/.x402-card/config.json` (file permission 600).
 
-Priority (high to low):
-1. CLI flags (`--private-key`, `--service-url`)
-2. Environment variables (`EVM_PRIVATE_KEY`, `X402_CARD_SERVICE_URL`)
-3. Config file (`~/.x402-card/config.json`, set via `setup` command)
+Run `connect` to set up your wallet via WalletConnect. Your main wallet private key is **never** stored locally — only the session key (a limited, funded ephemeral wallet) is saved.
 
 To override the default service URL (optional):
 ```bash

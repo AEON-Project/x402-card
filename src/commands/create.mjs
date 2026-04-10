@@ -15,7 +15,7 @@ export async function create(opts) {
     process.exit(1);
   }
   if (!privateKey) {
-    console.error(JSON.stringify({ error: "Missing private key. Run: x402-card setup --private-key <0x...>" }));
+    console.error(JSON.stringify({ error: "Wallet not configured. Run: x402-card connect --amount <usdt>" }));
     process.exit(1);
   }
 
