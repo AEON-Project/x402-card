@@ -4,7 +4,7 @@
 
 Before creating a card, verify:
 
-1. Wallet is configured — run `setup --check`. If not ready, guide user to [wallet-setup](wallet-setup.md). Recommend `connect` (WalletConnect) over direct private key.
+1. Wallet is configured — run `setup --check`. If not ready, run `connect` to set up via WalletConnect. See [wallet-setup](wallet-setup.md).
 2. Service URL is configured (has built-in default, no action needed unless user wants to override)
 3. The `create` command automatically checks wallet balance before proceeding. No need to run `wallet` separately.
 

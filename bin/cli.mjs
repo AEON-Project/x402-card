@@ -11,9 +11,9 @@ program
 
 program
   .command("setup")
-  .description("Configure service URL and EVM wallet (saved to ~/.x402-card/config.json)")
-  .option("--service-url <url>", "x402 card service URL")
-  .option("--private-key <key>", "EVM private key (0x...)")
+  .description("Check or show wallet config. Use 'connect' to set up wallet via WalletConnect.")
+  .option("--service-url <url>", "Override service URL")
+  .option("--private-key <key>", "Legacy: direct private key (use 'connect' instead)")
   .option("--show", "Show current configuration", false)
   .option("--check", "Check if configured (exit 0=ready, 1=not ready)", false)
   .action(async (opts) => {
