@@ -4,9 +4,7 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http, formatUnits } from "viem";
 import { bsc } from "viem/chains";
-import { BSC_RPC_URL } from "./constants.mjs";
-
-const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
+import { BSC_RPC_URL, USDT_BSC } from "./constants.mjs";
 
 const ERC20_BALANCE_ABI = [
   {
@@ -31,12 +29,10 @@ function getClient() {
 }
 
 /**
- * 查询钱包 BNB 和 USDT 余额
- * @param {string} privateKey
+ * 通过地址查询 BNB 和 USDT 余额（不需要私钥）
+ * @param {string} address - EVM 地址
  */
-export async function getWalletBalance(privateKey) {
-  const account = privateKeyToAccount(privateKey);
-  const address = account.address;
+export async function getBalanceByAddress(address) {
   const client = getClient();
 
   const [bnbRaw, usdtRaw] = await Promise.all([
@@ -56,4 +52,13 @@ export async function getWalletBalance(privateKey) {
     bnbRaw,
     usdtRaw,
   };
+}
+
+/**
+ * 通过私钥查询钱包 BNB 和 USDT 余额
+ * @param {string} privateKey
+ */
+export async function getWalletBalance(privateKey) {
+  const account = privateKeyToAccount(privateKey);
+  return getBalanceByAddress(account.address);
 }

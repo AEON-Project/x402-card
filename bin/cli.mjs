@@ -54,6 +54,28 @@ program
   });
 
 program
+  .command("connect")
+  .description("Connect wallet via WalletConnect, create funded session key (recommended)")
+  .option("--amount <usdt>", "USDT amount to fund session key", "50")
+  .option("--gas <bnb>", "BNB for gas fees", "0.001")
+  .option("--project-id <id>", "WalletConnect Cloud project ID")
+  .action(async (opts) => {
+    const { connect } = await import("../src/commands/connect.mjs");
+    return connect(opts);
+  });
+
+program
+  .command("topup")
+  .description("Top up session key balance via WalletConnect")
+  .option("--amount <usdt>", "USDT amount to add", "50")
+  .option("--gas", "Also send BNB for gas", false)
+  .option("--project-id <id>", "WalletConnect Cloud project ID")
+  .action(async (opts) => {
+    const { topup } = await import("../src/commands/topup.mjs");
+    return topup(opts);
+  });
+
+program
   .command("upgrade")
   .description("Check and upgrade skill to latest version from GitHub")
   .option("--check", "Only check, do not upgrade", false)

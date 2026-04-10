@@ -1,6 +1,6 @@
 {
   "name": "@aeon-ai-pay/x402-card",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "CLI & Agent skill for purchasing virtual debit cards via x402 protocol",
   "type": "module",
   "bin": {
@@ -21,8 +21,10 @@
   "dependencies": {
     "@aeon-ai-pay/axios": "^2.1.0",
     "@aeon-ai-pay/evm": "^2.1.0",
+    "@walletconnect/sign-client": "^2.17.0",
     "axios": "^1.13.2",
     "commander": "^13.0.0",
+    "qrcode-terminal": "^0.12.0",
     "viem": "^2.39.0"
   },
   "engines": {

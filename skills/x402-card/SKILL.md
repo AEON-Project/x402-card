@@ -9,7 +9,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.2.0"
+  version: "0.2.2"
   author: AEON-Project
   openclaw:
     requires:
@@ -31,7 +31,10 @@ Purchase virtual debit cards (Visa/Mastercard) by paying with USDT on BSC via th
 All operations use `npx @aeon-ai-pay/x402-card`:
 
 ```bash
-# First time: provide your EVM wallet private key (service URL has a built-in default)
+# Recommended: Connect wallet via WalletConnect (no private key stored)
+npx @aeon-ai-pay/x402-card connect --amount 50
+
+# Legacy: Provide EVM wallet private key directly
 npx @aeon-ai-pay/x402-card setup --private-key 0x...
 
 # Show current config
@@ -45,16 +48,23 @@ npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
 # Check wallet balance
 npx @aeon-ai-pay/x402-card wallet
+
+# Top up session key balance
+npx @aeon-ai-pay/x402-card topup --amount 50
 ```
 
 ## Configuration
 
-Config is stored at `~/.x402-card/config.json` (file permission 600). Only `privateKey` is required — service URL has a built-in default.
+Config is stored at `~/.x402-card/config.json` (file permission 600).
+
+Two modes:
+- **session-key** (recommended): Via `connect` command. Uses WalletConnect to fund a local session key. Main wallet private key is NEVER stored.
+- **private-key** (legacy): Via `setup` command. Stores private key locally.
 
 Priority (high to low):
 1. **CLI flags**: `--private-key`, `--service-url`
 2. **Environment variables**: `EVM_PRIVATE_KEY`, `X402_CARD_SERVICE_URL`
-3. **Config file**: `~/.x402-card/config.json` (set via `setup` command)
+3. **Config file**: `~/.x402-card/config.json`
 
 ## Step 0: Pre-flight Checks
 
@@ -81,13 +91,20 @@ npx @aeon-ai-pay/x402-card upgrade --check
 npx @aeon-ai-pay/x402-card setup --check
 ```
 
-- Exit code 0 + `"ready": true` → proceed to user intent. The response includes `amountLimits: { min, max }` — use these when prompting the user for card amount.
-- Exit code 1 + `"ready": false` → only `privateKey` is needed (service URL has a built-in default). Ask user:
-  > "Please provide your EVM wallet private key (BSC network). It will be stored locally at ~/.x402-card/config.json with restricted file permissions and never transmitted elsewhere."
-- Then run:
-  ```bash
-  npx @aeon-ai-pay/x402-card setup --private-key <key>
-  ```
+- Exit code 0 + `"ready": true` → proceed to user intent. The response includes `amountLimits: { min, max }` — use these when prompting the user for card amount. Also check `mode` field to know which mode is active.
+- Exit code 1 + `"ready": false` → wallet not configured. Guide user through setup:
+  1. **Recommended: WalletConnect (session key mode)**
+     > "I'll help you connect your wallet via WalletConnect. This is the recommended approach — your main wallet private key will NOT be stored locally."
+     Ask how much USDT to fund the session key (default $50), then run:
+     ```bash
+     npx @aeon-ai-pay/x402-card connect --amount <usdt>
+     ```
+     The command will display a QR code in terminal. Ask user to scan with their wallet app (MetaMask, Trust Wallet, etc.) and approve 2 transactions (USDT + BNB transfer).
+  2. **Fallback: Direct private key**
+     Only if user explicitly prefers or cannot use WalletConnect:
+     ```bash
+     npx @aeon-ai-pay/x402-card setup --private-key <key>
+     ```
 - Do NOT ask for service URL unless the user explicitly wants to change it.
 
 ## Decision Tree
@@ -108,16 +125,15 @@ After config is verified, determine user intent and route:
 ### 3. User wants to SETUP or UPDATE config
 - Read [wallet-setup](references/wallet-setup.md) for configuring the EVM wallet.
 - Must be done before any card purchase.
-- To update, run `setup` with only the field to change:
-  ```bash
-  # Update private key
-  npx @aeon-ai-pay/x402-card setup --private-key <new-key>
-  # Update service URL (optional, only if user explicitly requests)
-  npx @aeon-ai-pay/x402-card setup --service-url <new-url>
-  ```
-- After update, run `setup --show` to confirm (private key is masked).
 
-### 4. User wants to understand the PROTOCOL
+### 4. User wants to TOP UP session key
+- Only applicable in session-key mode. Run:
+  ```bash
+  npx @aeon-ai-pay/x402-card topup --amount <usdt>
+  ```
+  This re-opens WalletConnect for a one-shot funding transfer.
+
+### 5. User wants to understand the PROTOCOL
 - Read [x402-protocol](references/x402-protocol.md) for how x402 works.
 
 ## Anti-patterns
@@ -129,8 +145,18 @@ After config is verified, determine user intent and route:
 
 ## Insufficient Balance Handling
 
-When create returns `"error": "Insufficient USDT balance"`, present to user:
+When create returns `"error": "Insufficient USDT balance"`, handle based on mode:
 
+**Session-key mode:**
+```
+Session key USDT balance is insufficient.
+- Required: {required}
+- Available: {available}
+
+Run 'x402-card topup --amount <usdt>' to add funds via WalletConnect.
+```
+
+**Private-key mode:**
 ```
 Wallet USDT balance is insufficient.
 - Required: {required}

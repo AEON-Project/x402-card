@@ -21,6 +21,7 @@ export async function setup(opts) {
       const account = privateKeyToAccount(key);
       config.privateKey = key;
       config.address = account.address;
+      config.mode = "private-key";
       changed = true;
       console.error(`Wallet address: ${account.address}`);
     } catch (e) {
@@ -38,7 +39,9 @@ export async function setup(opts) {
     console.log(JSON.stringify({
       ready,
       missing,
+      mode: config.mode || "private-key",
       address: config.address || null,
+      mainWallet: config.mainWallet || null,
       serviceUrl: config.serviceUrl || null,
       amountLimits: { min: MIN_AMOUNT, max: MAX_AMOUNT },
     }));
@@ -58,8 +61,9 @@ export async function setup(opts) {
 
   if (!changed) {
     console.error("Usage:");
-    console.error("  x402-card setup --private-key <0x...>");
-    console.error("  x402-card setup --private-key <0x...> --service-url <url>  (optional)");
+    console.error("  x402-card connect                                        (recommended: WalletConnect + session key)");
+    console.error("  x402-card setup --private-key <0x...>                    (legacy: direct private key)");
+    console.error("  x402-card setup --private-key <0x...> --service-url <url>");
     console.error("  x402-card setup --show");
     console.error(`\nConfig file: ${getConfigPath()}`);
     process.exit(1);

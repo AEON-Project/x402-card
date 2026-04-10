@@ -41,3 +41,11 @@ export function resolve(cliValue, envKey, configKey) {
 export function getConfigPath() {
   return CONFIG_FILE;
 }
+
+/**
+ * 判断当前是否为 session-key 模式
+ */
+export function isSessionKeyMode() {
+  const config = loadConfig();
+  return config.mode === "session-key";
+}
