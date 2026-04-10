@@ -43,7 +43,7 @@ export async function setup(opts) {
     };
     if (!ready) {
       result.setupRequired = "wallet";
-      result.setupHint = "Run 'npx @aeon-ai-pay/x402-card connect --amount <usdt>' to connect wallet via WalletConnect (recommended), or 'setup --private-key <0x...>' as fallback.";
+      result.setupHint = "Run 'npx @aeon-ai-pay/x402-card connect --amount <usdt>' to connect wallet via WalletConnect. Do NOT ask user for a private key.";
     }
     console.log(JSON.stringify(result));
     process.exit(ready ? 0 : 1);
