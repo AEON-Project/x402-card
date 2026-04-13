@@ -12,39 +12,32 @@ export async function setup(opts) {
     changed = true;
   }
 
-  // 设置私钥
-  if (opts.privateKey) {
-    const key = opts.privateKey.startsWith("0x") ? opts.privateKey : `0x${opts.privateKey}`;
-    // 验证私钥格式
-    try {
-      const { privateKeyToAccount } = await import("viem/accounts");
-      const account = privateKeyToAccount(key);
-      config.privateKey = key;
+  // --check: Agent 用来快速判断是否就绪。
+  // 若本地不存在私钥，自动生成一对全新私钥并保存（不走 WalletConnect）。
+  if (opts.check) {
+    let created = false;
+
+    if (!config.privateKey) {
+      const { generatePrivateKey, privateKeyToAccount } = await import("viem/accounts");
+      const newKey = generatePrivateKey();
+      const account = privateKeyToAccount(newKey);
+      config.privateKey = newKey;
       config.address = account.address;
       config.mode = "private-key";
-      changed = true;
-      console.error(`Wallet address: ${account.address}`);
-    } catch (e) {
-      console.error(JSON.stringify({ error: `Invalid private key: ${e.message}` }));
-      process.exit(1);
+      saveConfig(config);
+      created = true;
     }
-  }
 
-  // --check: Agent 用来快速判断是否就绪（exit code 0=就绪, 1=未就绪）
-  if (opts.check) {
     const ready = !!(config.serviceUrl && config.privateKey);
     const result = {
       ready,
+      created,
       mode: config.mode || null,
       address: config.address || null,
       mainWallet: config.mainWallet || null,
       serviceUrl: config.serviceUrl || null,
       amountLimits: { min: MIN_AMOUNT, max: MAX_AMOUNT },
     };
-    if (!ready) {
-      result.setupRequired = "wallet";
-      result.setupHint = "Run 'npx @aeon-ai-pay/x402-card connect --amount <usdt>' to connect wallet via WalletConnect. Do NOT ask user for a private key.";
-    }
     console.log(JSON.stringify(result));
     process.exit(ready ? 0 : 1);
   }
@@ -62,10 +55,9 @@ export async function setup(opts) {
 
   if (!changed) {
     console.error("Usage:");
-    console.error("  x402-card connect                                        (recommended: WalletConnect + session key)");
-    console.error("  x402-card setup --private-key <0x...>                    (legacy: direct private key)");
-    console.error("  x402-card setup --private-key <0x...> --service-url <url>");
-    console.error("  x402-card setup --show");
+    console.error("  x402-card setup --check                  (auto-create local wallet if missing)");
+    console.error("  x402-card setup --show                   (show current config)");
+    console.error("  x402-card setup --service-url <url>      (override service URL)");
     console.error(`\nConfig file: ${getConfigPath()}`);
     process.exit(1);
   }

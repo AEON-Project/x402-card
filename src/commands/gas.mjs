@@ -1,5 +1,6 @@
 /**
- * topup 命令：通过 WalletConnect 为现有 session key 追加资金
+ * gas 命令：通过 WalletConnect 从主钱包向本地钱包转入少量 BNB，专门用于 withdraw 时支付 gas
+ * （x402 建卡是 gasless 的，仅 withdraw 这类直发链上交易需要 BNB）
  */
 import { createPublicClient, http } from "viem";
 import { bsc } from "viem/chains";
@@ -8,43 +9,41 @@ import { getBalanceByAddress } from "../balance.mjs";
 import {
   initSignClient,
   connectWallet,
-  requestERC20Transfer,
+  requestNativeTransfer,
   disconnectSession,
 } from "../walletconnect.mjs";
-import {
-  BSC_RPC_URL,
-  USDT_BSC,
-  DEFAULT_WC_PROJECT_ID,
-} from "../constants.mjs";
+import { BSC_RPC_URL, DEFAULT_WC_PROJECT_ID } from "../constants.mjs";
 
-export async function topup(opts) {
+const DEFAULT_GAS_AMOUNT = "0.001";
+
+export async function gas(opts) {
   const config = loadConfig();
 
   if (!config.privateKey || !config.address) {
     console.error(JSON.stringify({
-      error: "No session key found. Run 'x402-card setup --check' first to auto-create one.",
+      error: "No local wallet found. Run 'x402-card setup --check' first to auto-create one.",
     }));
     process.exit(1);
   }
 
-  const amount = opts.amount || "50";
+  const amount = opts.amount || DEFAULT_GAS_AMOUNT;
   const projectId = opts.projectId || DEFAULT_WC_PROJECT_ID;
 
   if (projectId.includes("YOUR_WALLETCONNECT")) {
     console.error(JSON.stringify({
       error: "Please set a WalletConnect project ID. Get one at https://cloud.walletconnect.com",
-      hint: "x402-card topup --project-id <your-project-id>",
+      hint: "x402-card gas --project-id <your-project-id>",
     }));
     process.exit(1);
   }
 
   const sessionAddress = config.address;
-  console.error(`Session key: ${sessionAddress}`);
+  console.error(`Local wallet: ${sessionAddress}`);
 
-  // 查询当前余额
+  // 查询当前 BNB 余额
   try {
     const bal = await getBalanceByAddress(sessionAddress);
-    console.error(`Current balance: ${bal.usdt} USDT`);
+    console.error(`Current balance: ${bal.bnb} BNB`);
   } catch {
     // 非关键错误
   }
@@ -78,38 +77,41 @@ export async function topup(opts) {
     transport: http(BSC_RPC_URL, { timeout: 15000, retryCount: 2 }),
   });
 
-  // 转 USDT
-  let usdtTxHash;
+  // 转 BNB
+  let bnbTxHash;
   try {
-    console.error(`\nRequesting USDT transfer: ${amount} USDT → ${sessionAddress}`);
+    console.error(`\nRequesting BNB transfer: ${amount} BNB → ${sessionAddress}`);
     console.error("Please confirm the transaction in your wallet app...");
-    usdtTxHash = await requestERC20Transfer(signClient, session, {
+    bnbTxHash = await requestNativeTransfer(signClient, session, {
       from: peerAddress,
       to: sessionAddress,
-      token: USDT_BSC,
-      amount,
-      decimals: 18,
+      value: amount,
     });
-    console.error(`USDT transfer submitted: ${usdtTxHash}`);
+    console.error(`BNB transfer submitted: ${bnbTxHash}`);
     console.error("Waiting for confirmation...");
     const receipt = await publicClient.waitForTransactionReceipt({
-      hash: usdtTxHash,
+      hash: bnbTxHash,
       timeout: 60_000,
     });
     if (receipt.status !== "success") {
-      throw new Error("USDT transfer transaction reverted");
+      throw new Error("BNB transfer transaction reverted");
     }
-    console.error("USDT transfer confirmed.");
+    console.error("BNB transfer confirmed.");
   } catch (error) {
-    console.error(JSON.stringify({ error: `USDT transfer failed: ${error.message}` }));
+    const isRejected = error.message?.includes("rejected") || error.code === 5000;
+    if (isRejected) {
+      console.error(JSON.stringify({ error: "Transaction rejected in wallet." }));
+    } else {
+      console.error(JSON.stringify({ error: `BNB transfer failed: ${error.message}` }));
+    }
     await disconnectSession(signClient, session);
     process.exit(1);
   }
 
-  // 断开 WalletConnect
+  // 断开
   await disconnectSession(signClient, session);
 
-  // 更新配置中的 mainWallet（可能换了钱包）
+  // 记录 mainWallet（withdraw 时可省略 --to）
   config.mainWallet = peerAddress;
   saveConfig(config);
 
@@ -118,17 +120,15 @@ export async function topup(opts) {
   try {
     finalBalance = await getBalanceByAddress(sessionAddress);
   } catch {
-    finalBalance = { usdt: "unknown" };
+    finalBalance = { bnb: "unknown" };
   }
 
   console.log(JSON.stringify({
     success: true,
-    sessionKey: {
+    localWallet: {
       address: sessionAddress,
-      usdt: finalBalance.usdt,
+      bnb: finalBalance.bnb,
     },
-    transactions: {
-      usdt: usdtTxHash || null,
-    },
+    transaction: bnbTxHash,
   }, null, 2));
 }

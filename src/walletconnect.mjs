@@ -161,7 +161,7 @@ export async function requestERC20Transfer(signClient, session, { from, to, toke
 /**
  * 请求原生 BNB 转账
  * @param {SignClient} signClient
- * @param {object} session - WalletConnect session
+ * @param {object} session
  * @param {{ from: string, to: string, value: string }} params - value 为 BNB 数量（如 "0.001"）
  * @returns {string} 交易 hash
  */

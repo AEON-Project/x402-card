@@ -60,6 +60,17 @@ export async function withdraw(opts) {
     process.exit(1);
   }
 
+  // withdraw 是本地钱包直发的 ERC20 transfer，必须有 BNB 作为 gas
+  // （x402 建卡走协议层，是 gasless 的；但 withdraw 是普通链上交易）
+  if (balance.bnbRaw === 0n) {
+    console.error(JSON.stringify({
+      error: "No BNB for gas. Withdraw is a normal on-chain transfer and requires BNB to pay gas.",
+      address: sessionAddress,
+      hint: "Run 'npx @aeon-ai-pay/x402-card gas' to top up BNB via WalletConnect, then retry.",
+    }));
+    process.exit(1);
+  }
+
   // 计算转账金额
   let withdrawAmount = balance.usdtRaw;
   if (opts.amount) {
@@ -107,7 +118,7 @@ export async function withdraw(opts) {
   try {
     finalBalance = await getBalanceByAddress(sessionAddress);
   } catch {
-    finalBalance = { usdt: "unknown", bnb: "unknown" };
+    finalBalance = { usdt: "unknown" };
   }
 
   console.log(JSON.stringify({
@@ -117,7 +128,6 @@ export async function withdraw(opts) {
     transaction: usdtTxHash,
     remaining: {
       usdt: finalBalance.usdt,
-      bnb: finalBalance.bnb,
     },
   }, null, 2));
 }

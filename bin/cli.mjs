@@ -7,15 +7,14 @@ const program = new Command();
 program
   .name("x402-card")
   .description("Purchase virtual debit cards via x402 protocol")
-  .version("0.3.2");
+  .version("0.4.0");
 
 program
   .command("setup")
-  .description("Check or show wallet config. Use 'connect' to set up wallet via WalletConnect.")
+  .description("Pre-check: auto-create local wallet on first run, or show config")
   .option("--service-url <url>", "Override service URL")
-  .option("--private-key <key>", "Legacy: direct private key (use 'connect' instead)")
   .option("--show", "Show current configuration", false)
-  .option("--check", "Check if configured (exit 0=ready, 1=not ready)", false)
+  .option("--check", "Check & auto-create wallet if missing (exit 0=ready, 1=not ready)", false)
   .action(async (opts) => {
     const { setup } = await import("../src/commands/setup.mjs");
     return setup(opts);
@@ -46,7 +45,7 @@ program
 
 program
   .command("wallet")
-  .description("Check EVM wallet balance (BNB + USDT on BSC)")
+  .description("Check local wallet USDT balance on BSC")
   .option("--private-key <key>", "Override EVM private key")
   .action(async (opts) => {
     const { wallet } = await import("../src/commands/wallet.mjs");
@@ -54,25 +53,23 @@ program
   });
 
 program
-  .command("connect")
-  .description("Connect wallet via WalletConnect, create funded session key (recommended)")
-  .option("--amount <usdt>", "USDT amount to fund session key", "50")
-  .option("--gas <bnb>", "BNB for gas fees", "0.001")
-  .option("--project-id <id>", "WalletConnect Cloud project ID")
-  .action(async (opts) => {
-    const { connect } = await import("../src/commands/connect.mjs");
-    return connect(opts);
-  });
-
-program
   .command("topup")
-  .description("Top up session key balance via WalletConnect")
+  .description("Top up local wallet USDT balance via WalletConnect (gasless)")
   .option("--amount <usdt>", "USDT amount to add", "50")
-  .option("--gas", "Also send BNB for gas", false)
   .option("--project-id <id>", "WalletConnect Cloud project ID")
   .action(async (opts) => {
     const { topup } = await import("../src/commands/topup.mjs");
     return topup(opts);
+  });
+
+program
+  .command("gas")
+  .description("Send BNB from main wallet to local wallet via WalletConnect (for withdraw gas)")
+  .option("--amount <bnb>", "BNB amount to send", "0.001")
+  .option("--project-id <id>", "WalletConnect Cloud project ID")
+  .action(async (opts) => {
+    const { gas } = await import("../src/commands/gas.mjs");
+    return gas(opts);
   });
 
 program

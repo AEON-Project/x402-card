@@ -15,7 +15,7 @@ export async function create(opts) {
     process.exit(1);
   }
   if (!privateKey) {
-    console.error(JSON.stringify({ error: "Wallet not configured. Run: x402-card connect --amount <usdt>" }));
+    console.error(JSON.stringify({ error: "Wallet not configured. Run: x402-card setup --check" }));
     process.exit(1);
   }
 
@@ -29,19 +29,14 @@ export async function create(opts) {
     process.exit(1);
   }
 
-  // 3. 前置余额检查
+  // 3. 前置余额检查（x402 在 BSC 上免 gas，无需检查 BNB）
   console.error("Checking wallet balance...");
   try {
-    const { address, bnb, usdt, bnbRaw, usdtRaw } = await getWalletBalance(privateKey);
+    const { address, usdt } = await getWalletBalance(privateKey);
     const usdtNum = parseFloat(usdt);
 
     console.error(`Wallet: ${address}`);
-    console.error(`Balance: ${usdt} USDT, ${bnb} BNB`);
-
-    if (bnbRaw === 0n) {
-      console.error(JSON.stringify({ error: "No BNB for gas fees. Deposit BNB to your wallet first.", address }));
-      process.exit(1);
-    }
+    console.error(`Balance: ${usdt} USDT`);
 
     // USDT 需大于 amount（x402 协议会加唯一后缀，实际扣款略高于 amount 的 USDT 等值）
     if (usdtNum < amountNum) {
