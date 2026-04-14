@@ -14,7 +14,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.4.1"
+  version: "0.4.2"
   author: AEON-Project
   openclaw:
     requires:
@@ -50,17 +50,24 @@ compatibility: 需要 Node.js >= 18 和 npm
 
 ## 命令一览
 
-所有操作通过 `npx @aeon-ai-pay/x402-card`：
+所有操作通过全局命令 `x402-card`。
+
+> 📦 **前置安装**（仅一次）：
+> ```bash
+> npm install -g @aeon-ai-pay/x402-card@latest
+> ```
+> 用全局命令而非 `npx`，可避免每次 4-5 秒的冷启动延迟。
+> 升级：`npm update -g @aeon-ai-pay/x402-card`。
 
 ```bash
-npx @aeon-ai-pay/x402-card setup --check                # 预检查 / 自动建钱包
-npx @aeon-ai-pay/x402-card setup --show                 # 查看配置
-npx @aeon-ai-pay/x402-card create --amount <usd> --poll # 创建虚拟卡
-npx @aeon-ai-pay/x402-card status --order-no <orderNo>  # 查询卡片状态
-npx @aeon-ai-pay/x402-card wallet                       # 查询本地钱包余额
-npx @aeon-ai-pay/x402-card topup --amount <usdt>        # 自动充值 USDT（WalletConnect）
-npx @aeon-ai-pay/x402-card gas [--amount <bnb>]         # 给本地钱包充 BNB（WalletConnect, 用于 withdraw）
-npx @aeon-ai-pay/x402-card withdraw [--to <addr>] [--amount <usdt>]  # 提取资金
+x402-card setup --check                # 预检查 / 自动建钱包
+x402-card setup --show                 # 查看配置
+x402-card create --amount <usd> --poll # 创建虚拟卡
+x402-card status --order-no <orderNo>  # 查询卡片状态
+x402-card wallet                       # 查询本地钱包余额
+x402-card topup --amount <usdt>        # 自动充值 USDT（WalletConnect）
+x402-card gas [--amount <bnb>]         # 给本地钱包充 BNB（WalletConnect, 用于 withdraw）
+x402-card withdraw [--to <addr>] [--amount <usdt>]  # 提取资金
 ```
 
 配置存储在 `~/.x402-card/config.json`（权限 600）。
@@ -73,7 +80,7 @@ npx @aeon-ai-pay/x402-card withdraw [--to <addr>] [--amount <usdt>]  # 提取资
 无论用户意图为何，**首先**运行：
 
 ```bash
-npx @aeon-ai-pay/x402-card setup --check
+x402-card setup --check
 ```
 
 CLI 行为：
@@ -128,7 +135,7 @@ Auto-creating your designated wallet...
 ### 2.1 执行创建
 
 ```bash
-npx @aeon-ai-pay/x402-card create --amount <usd> --poll
+x402-card create --amount <usd> --poll
 ```
 
 CLI 内部依次执行：
@@ -186,14 +193,26 @@ Required amount: {required} USDT
 征得用户同意后执行：
 
 ```bash
-npx @aeon-ai-pay/x402-card topup --amount <required>
+x402-card topup --amount <required>
 ```
 
-⚠️ **WalletConnect 流程为交互式**：
+⚠️ **WalletConnect 流程为交互式，必须前台同步运行**：
 - 终端打印 QR 码 + `wc:` URI
 - 用户用钱包 App（MetaMask、Trust Wallet、imToken 等）扫码连接
 - 在钱包 App 中确认 1 笔 USDT 转账（金额 = `<required>`，目标 = 本地钱包）
-- 全过程最长 120 秒，**不可后台运行**
+- 全过程最长 120 秒
+
+> 🚫 **绝对禁止**：
+> - 不要用 `run_in_background: true` 调用 `topup` / `gas` / `connect` 等 WalletConnect 命令
+> - 不要在用户扫码完成前 kill 进程
+> - 一旦命令进入后台或被中断，**即使用户在钱包内已签名**，CLI 也无法记录 `mainWallet` 与确认链上回执 → 会出现"已支付但未被检测"的假象
+>
+> 🔧 **如果误把 `topup` 放到后台并已 kill**：
+> 用户的链上交易**很可能已经发出**（USDT 实际已到本地钱包）。
+> 此时**不要重新 topup**，直接：
+> 1. 跑 `x402-card wallet` 确认 USDT 已到账
+> 2. 若到账，直接重跑原 `create --amount <usd> --poll`
+> 3. 若未到账（用户也没真扫码），再前台 `topup`
 
 输出阶段提示：
 
@@ -235,7 +254,7 @@ Add funds to continue
 
 **自动重试一次** `create`：
 ```bash
-npx @aeon-ai-pay/x402-card create --amount <usd> --poll
+x402-card create --amount <usd> --poll
 ```
 若再次失败，按对应分支处理；不要进入第三次重试。
 
@@ -262,8 +281,8 @@ Polling timeout after 10 attempts. Check manually with: x402-card status --order
 ### 3.1 命令
 
 ```bash
-npx @aeon-ai-pay/x402-card status --order-no <orderNo>
-npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll  # 轮询直至终态
+x402-card status --order-no <orderNo>
+x402-card status --order-no <orderNo> --poll  # 轮询直至终态
 ```
 
 ### 3.2 输出模板
@@ -297,7 +316,7 @@ Usage: {used} / {total} (single-use)
 ### 4.1 查询本地钱包余额
 
 ```bash
-npx @aeon-ai-pay/x402-card wallet
+x402-card wallet
 ```
 
 输出本地钱包 USDT 余额及地址。若曾通过 `topup` 充值，会附带主钱包余额。
@@ -305,7 +324,7 @@ npx @aeon-ai-pay/x402-card wallet
 ### 4.2 追加充值（同 2.C 流程）
 
 ```bash
-npx @aeon-ai-pay/x402-card topup --amount <usdt>
+x402-card topup --amount <usdt>
 ```
 
 只转 USDT。x402 在 BSC 上免 gas，本地钱包**不需要** BNB。
@@ -313,10 +332,10 @@ npx @aeon-ai-pay/x402-card topup --amount <usdt>
 ### 4.3 提取资金到主钱包
 
 ```bash
-npx @aeon-ai-pay/x402-card withdraw                                  # 提全部 USDT 到记录的 mainWallet
-npx @aeon-ai-pay/x402-card withdraw --amount <usdt>                  # 指定金额
-npx @aeon-ai-pay/x402-card withdraw --to 0xMainWallet                # 指定目标地址
-npx @aeon-ai-pay/x402-card withdraw --to 0xMainWallet --amount <usdt>
+x402-card withdraw                                  # 提全部 USDT 到记录的 mainWallet
+x402-card withdraw --amount <usdt>                  # 指定金额
+x402-card withdraw --to 0xMainWallet                # 指定目标地址
+x402-card withdraw --to 0xMainWallet --amount <usdt>
 ```
 
 > ⚠️ **withdraw 需要 BNB 作为 gas**：
@@ -349,7 +368,7 @@ Status: completed
 | --- | --- | --- |
 | `No main wallet address found. Use --to <address>` | 配置无 mainWallet 且未传 `--to` | 询问用户提供目标地址 |
 | `No USDT to withdraw.` | 本地钱包 USDT 余额为 0 | 告知无可提取，建议先 `topup` |
-| `No BNB for gas. ...` | 本地钱包无 BNB，无法支付 gas | 提示用户运行 `npx @aeon-ai-pay/x402-card gas` 通过 WalletConnect 充入少量 BNB；详见 4.4 |
+| `No BNB for gas. ...` | 本地钱包无 BNB，无法支付 gas | 提示用户运行 `x402-card gas` 通过 WalletConnect 充入少量 BNB；详见 4.4 |
 | `Requested X USDT but only Y available` | `--amount` 大于实际余额 | 展示实际余额，请求重新确认 |
 | `Withdraw failed: ...` | 链上交易失败 | 展示原始错误，建议稍后重试 |
 
@@ -358,8 +377,8 @@ Status: completed
 当 `withdraw` 报 `No BNB for gas` 时，使用专用 `gas` 子命令通过 WalletConnect 从主钱包转少量 BNB 进来。
 
 ```bash
-npx @aeon-ai-pay/x402-card gas                    # 默认 0.001 BNB
-npx @aeon-ai-pay/x402-card gas --amount 0.002     # 自定义金额
+x402-card gas                    # 默认 0.001 BNB
+x402-card gas --amount 0.002     # 自定义金额
 ```
 
 ⚠️ **此命令为交互式 WalletConnect 流程**（与 `topup` 同机制）：
@@ -464,7 +483,7 @@ Balance: {bnb} BNB
 - **绝不**在未经用户确认金额的情况下执行 `create` 或 `topup`
 - **绝不**记录或显示完整私钥；地址展示为 `0x0...last4` 格式
 - **绝不**跳过 `setup --check` 直接执行其他命令
-- **不要**让 `topup` 或 WalletConnect 在后台运行（必须前台等待用户扫码）
+- **绝不**让 `topup` / `gas` / 任何 WalletConnect 命令在后台运行（必须前台同步等待）。误后台导致的"已支付未检测"问题，按步骤 2 情况 C 的「如果误把 topup 放到后台」恢复
 - **不要**在 `topup` 失败后无限重试，按对应模板提示后停止
 - **不要**轮询 `status` 超过 10 次；超时即停，提示用户记下 `orderNo` 自行查询
 - **不要**自行编造 `amountLimits`；始终使用 `setup --check` 返回的 `min/max`

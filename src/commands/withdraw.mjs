@@ -66,7 +66,7 @@ export async function withdraw(opts) {
     console.error(JSON.stringify({
       error: "No BNB for gas. Withdraw is a normal on-chain transfer and requires BNB to pay gas.",
       address: sessionAddress,
-      hint: "Run 'npx @aeon-ai-pay/x402-card gas' to top up BNB via WalletConnect, then retry.",
+      hint: "Run 'x402-card gas' to top up BNB via WalletConnect, then retry.",
     }));
     process.exit(1);
   }

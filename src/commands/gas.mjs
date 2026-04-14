@@ -1,6 +1,5 @@
 /**
- * gas 命令：通过 WalletConnect 从主钱包向本地钱包转入少量 BNB，专门用于 withdraw 时支付 gas
- * （x402 建卡是 gasless 的，仅 withdraw 这类直发链上交易需要 BNB）
+ * gas 命令：通过 WalletConnect 从主钱包向本地钱包转 BNB（withdraw 时支付 gas）
  */
 import { createPublicClient, http } from "viem";
 import { bsc } from "viem/chains";
@@ -11,10 +10,14 @@ import {
   connectWallet,
   requestNativeTransfer,
   disconnectSession,
+  startStatusServer,
+  stopStatusServer,
+  setStatus,
 } from "../walletconnect.mjs";
 import { BSC_RPC_URL, DEFAULT_WC_PROJECT_ID } from "../constants.mjs";
 
 const DEFAULT_GAS_AMOUNT = "0.001";
+const FINAL_LINGER_MS = 2000;
 
 export async function gas(opts) {
   const config = loadConfig();
@@ -40,55 +43,44 @@ export async function gas(opts) {
   const sessionAddress = config.address;
   console.error(`Local wallet: ${sessionAddress}`);
 
-  // 查询当前 BNB 余额
   try {
     const bal = await getBalanceByAddress(sessionAddress);
     console.error(`Current balance: ${bal.bnb} BNB`);
-  } catch {
-    // 非关键错误
-  }
+  } catch {}
 
-  // 初始化 WalletConnect
-  let signClient;
+  const statusPort = await startStatusServer();
+  let signClient = null;
+  let session = null;
+  let bnbTxHash = null;
+  let exitCode = 0;
+  let errorPayload = null;
+
   try {
     console.error("Initializing WalletConnect...");
     signClient = await initSignClient(projectId);
-  } catch (error) {
-    console.error(JSON.stringify({
-      error: `Failed to initialize WalletConnect: ${error.message}`,
-    }));
-    process.exit(1);
-  }
 
-  // 连接钱包
-  let session, peerAddress;
-  try {
-    ({ session, peerAddress } = await connectWallet(signClient));
+    let peerAddress;
+    ({ session, peerAddress } = await connectWallet(signClient, statusPort));
     console.error(`Wallet connected: ${peerAddress}`);
-  } catch (error) {
-    console.error(JSON.stringify({
-      error: `Wallet connection failed: ${error.message}`,
-    }));
-    process.exit(1);
-  }
 
-  const publicClient = createPublicClient({
-    chain: bsc,
-    transport: http(BSC_RPC_URL, { timeout: 15000, retryCount: 2 }),
-  });
+    const publicClient = createPublicClient({
+      chain: bsc,
+      transport: http(BSC_RPC_URL, { timeout: 15000, retryCount: 2 }),
+    });
 
-  // 转 BNB
-  let bnbTxHash;
-  try {
+    setStatus("signing", { amount, token: "BNB", to: sessionAddress });
     console.error(`\nRequesting BNB transfer: ${amount} BNB → ${sessionAddress}`);
     console.error("Please confirm the transaction in your wallet app...");
+
     bnbTxHash = await requestNativeTransfer(signClient, session, {
       from: peerAddress,
       to: sessionAddress,
       value: amount,
     });
+    setStatus("tx_submitted", { txHash: bnbTxHash, amount, token: "BNB" });
     console.error(`BNB transfer submitted: ${bnbTxHash}`);
     console.error("Waiting for confirmation...");
+
     const receipt = await publicClient.waitForTransactionReceipt({
       hash: bnbTxHash,
       timeout: 60_000,
@@ -96,26 +88,35 @@ export async function gas(opts) {
     if (receipt.status !== "success") {
       throw new Error("BNB transfer transaction reverted");
     }
+
+    setStatus("confirmed", { txHash: bnbTxHash, amount, token: "BNB" });
     console.error("BNB transfer confirmed.");
+
+    config.mainWallet = peerAddress;
+    saveConfig(config);
   } catch (error) {
     const isRejected = error.message?.includes("rejected") || error.code === 5000;
     if (isRejected) {
-      console.error(JSON.stringify({ error: "Transaction rejected in wallet." }));
+      setStatus("rejected", { error: "Transaction rejected in wallet." });
+      errorPayload = { error: "Transaction rejected in wallet." };
     } else {
-      console.error(JSON.stringify({ error: `BNB transfer failed: ${error.message}` }));
+      setStatus("failed", { error: error.message });
+      errorPayload = { error: `BNB transfer failed: ${error.message}` };
     }
-    await disconnectSession(signClient, session);
-    process.exit(1);
+    exitCode = 1;
+  } finally {
+    await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
+    stopStatusServer();
+    if (session && signClient) {
+      await disconnectSession(signClient, session);
+    }
   }
 
-  // 断开
-  await disconnectSession(signClient, session);
+  if (exitCode !== 0) {
+    console.error(JSON.stringify(errorPayload));
+    process.exit(exitCode);
+  }
 
-  // 记录 mainWallet（withdraw 时可省略 --to）
-  config.mainWallet = peerAddress;
-  saveConfig(config);
-
-  // 查询最终余额
   let finalBalance;
   try {
     finalBalance = await getBalanceByAddress(sessionAddress);
