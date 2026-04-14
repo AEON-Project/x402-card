@@ -84,28 +84,31 @@ function openQRInBrowser(uri, statusPort) {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   .logo { margin-bottom: 24px; }
+  .outer {
+    width: 375px; min-height: 468px; border-radius: 16px; border: 1px solid #DBDEE3;
+    background: #F7F7F7; padding: 16px;
+  }
   .card {
-    text-align: center; padding: 32px 24px; border-radius: 12px; background: #fff;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.06); max-width: 375px; width: 100%; min-height: 436px;
+    text-align: center; padding: 24px 16px 16px; border-radius: 12px; background: #fff;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
-  .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 12px; line-height: 1.4; }
-  .timer { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 16px; font-weight: 500; color: #1972f6; margin-bottom: 20px; }
+  .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 24px; line-height: 1.4; }
+  .timer { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 16px; font-weight: 500; color: #1972f6; margin-bottom: 16px; }
   .timer svg { flex-shrink: 0; }
-  .qr-wrap { position: relative; padding: 12px; margin-bottom: 20px; display: inline-block; }
+  .qr-wrap { position: relative; padding: 12px; margin-bottom: 16px; display: inline-block; }
   .qr-border, .qr-border-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-  .qr-border rect { fill: none; stroke: #191b1f; stroke-width: 2; rx: 16; ry: 16;
+  .qr-border path { fill: none; stroke: #191b1f; stroke-width: 2;
     stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-  .qr-border-bg rect { fill: none; stroke: #e5e5e5; stroke-width: 2; rx: 16; ry: 16; }
+  .qr-border-bg path { fill: none; stroke: #e5e5e5; stroke-width: 2; }
   canvas { display: block; border-radius: 8px; }
-  .status-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .status-row { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 24px; }
   .loading-icon { width: 24px; height: 24px; animation: spin 1s steps(8) infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .status-text { font-size: 14px; font-weight: 400; color: #00b42a; }
   .check-icon { width: 24px; height: 24px; border-radius: 50%; background: #00b42a; display: flex; align-items: center; justify-content: center; }
   .check-icon svg { width: 14px; height: 14px; }
   .hint-bar {
-    display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 8px;
+    display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px;
     background: #f4f5f5; font-size: 12px; color: #737a86; line-height: 1.5; text-align: left; width: 100%;
   }
   .hint-bar svg { flex-shrink: 0; margin-top: 1px; }
@@ -135,8 +138,10 @@ function openQRInBrowser(uri, statusPort) {
   </svg>
 </div>
 
-<div class="card" id="root">
-  <div id="body"></div>
+<div class="outer">
+  <div class="card" id="root">
+    <div id="body"></div>
+  </div>
 </div>
 
 <script>
@@ -218,18 +223,24 @@ function openQRInBrowser(uri, statusPort) {
 
     const expireMin = Math.ceil(remaining / 60000);
 
-    // QR wrap 尺寸: canvas 200 + padding 12*2 = 224
-    const wrapSize = 224;
-    const r = 16;
-    const perimeter = 2 * (wrapSize - 2 * r) + 2 * Math.PI * r; // 圆角矩形周长
+    // QR wrap: 圆角矩形路径从12点（顶部中心）出发，顺时针绘制
+    // canvas 200 + padding 12*2 = 224, 圆角 r=16, 描边偏移1px
+    const S = 224, R = 16, cx = S/2;
+    // 从顶部中心开始，顺时针绘制一圈回到起点（开放路径，不用 Z 闭合，避免 dash 环绕）
+    const qrPath = 'M' + cx + ',1 H' + (S-1-R) + ' A' + R + ',' + R + ' 0 0 1 ' + (S-1) + ',' + (1+R) +
+      ' V' + (S-1-R) + ' A' + R + ',' + R + ' 0 0 1 ' + (S-1-R) + ',' + (S-1) +
+      ' H' + (1+R) + ' A' + R + ',' + R + ' 0 0 1 1,' + (S-1-R) +
+      ' V' + (1+R) + ' A' + R + ',' + R + ' 0 0 1 ' + (1+R) + ',1 H' + cx;
+    // 用 pathLength=1000 统一长度，避免手算偏差
+    const PL = 1000;
     const progress = remaining / EXPIRE_MS;
-    const dashOffset = perimeter * (1 - progress);
+    const dashOffset = -PL * (1 - progress);
 
     return '<div class="title">Scan the QR code with your wallet<br>to authorize transfer</div>' +
       '<div class="timer">' + CLOCK_SVG + ' ' + fmtTime(remaining) + ' Remaining</div>' +
-      '<div class="qr-wrap" style="width:' + wrapSize + 'px;height:' + wrapSize + 'px;">' +
-        '<svg class="qr-border-bg" viewBox="0 0 ' + wrapSize + ' ' + wrapSize + '"><rect x="1" y="1" width="' + (wrapSize-2) + '" height="' + (wrapSize-2) + '"/></svg>' +
-        '<svg class="qr-border" viewBox="0 0 ' + wrapSize + ' ' + wrapSize + '"><rect id="qr-progress" x="1" y="1" width="' + (wrapSize-2) + '" height="' + (wrapSize-2) + '" stroke-dasharray="' + perimeter.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '" transform="rotate(-90 ' + (wrapSize/2) + ' ' + (wrapSize/2) + ')"/></svg>' +
+      '<div class="qr-wrap" style="width:' + S + 'px;height:' + S + 'px;">' +
+        '<svg class="qr-border-bg" viewBox="0 0 ' + S + ' ' + S + '"><path d="' + qrPath + '"/></svg>' +
+        '<svg class="qr-border" viewBox="0 0 ' + S + ' ' + S + '"><path id="qr-progress" d="' + qrPath + '" pathLength="' + PL + '" stroke-dasharray="' + PL + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '"/></svg>' +
         '<canvas id="qr" style="position:relative;"></canvas>' +
       '</div>' +
       statusHTML +
@@ -319,13 +330,12 @@ function openQRInBrowser(uri, statusPort) {
       const hintSpan = document.querySelector('.hint-bar span');
       if (hintSpan) hintSpan.textContent = 'Expire in ' + expireMin + ' mins. This page will close automatically once the transfer is completed';
     }
-    // 更新 QR 边框倒计时进度
+    // 更新 QR 边框倒计时进度（负值 → 从12点顺时针消失）
     const progressEl = document.getElementById('qr-progress');
     if (progressEl) {
-      const wrapSize = 224, r = 16;
-      const perimeter = 2 * (wrapSize - 2 * r) + 2 * Math.PI * r;
+      const PL = 1000;
       const progress = Math.max(0, remaining) / EXPIRE_MS;
-      progressEl.setAttribute('stroke-dashoffset', (perimeter * (1 - progress)).toFixed(1));
+      progressEl.setAttribute('stroke-dashoffset', (-PL * (1 - progress)).toFixed(1));
     }
   }, 1000);
 

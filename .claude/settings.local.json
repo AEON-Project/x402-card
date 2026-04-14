@@ -38,7 +38,12 @@
       "WebFetch(domain:www.figma.com)",
       "Bash(curl:*)",
       "Bash(python3 -c \":*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(sed -i '' 's/stroke-dasharray=\"\"480.5\"\"/stroke-dasharray=\"\"860.5\"\"/g' /tmp/x402-fix5-preview.html)",
+      "Bash(sed -i '' \"s/2 \\\\* \\(S - 2 - 2 \\\\* R\\)/4 * \\(S - 2 - 2 * R\\)/g\" /tmp/x402-fix5-preview.html)",
+      "Bash(python3:*)",
+      "Bash(sed -i '' 's/border: 1px solid #F7F7F7;/border: 1px solid #DBDEE3;/' /tmp/x402-fix7-preview.html)",
+      "Bash(sed -i '' 's/background: #fff; padding: 16px;/background: #F7F7F7; padding: 16px;/' /tmp/x402-fix7-preview.html)"
     ]
   }
 }
