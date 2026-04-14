@@ -256,7 +256,7 @@ function openQRInBrowser(uri, statusPort) {
   function renderRejected() {
     return '<div class="result-card">' + REJECTED_SVG +
       '<div class="result-title">Payment approval was rejected</div>' +
-      '<div class="result-sub">Please try again if you\'d like to proceed.</div></div>';
+      '<div class="result-sub">Please try again if you\\\'d like to proceed.</div></div>';
   }
 
   function renderFailed(error) {
