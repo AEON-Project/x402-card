@@ -16,11 +16,11 @@
       "Read(//Users/yuanyong/.claude/skills/**)",
       "Read(//Users/yuanyong/.agents/skills/x402-card/**)",
       "Bash(find ~/.claude/skills/x402-card -name \"package.json\" -exec cat {})",
-      "Bash(tar -tzf aeon-ai-pay-x402-card-0.4.7.tgz)",
-      "Bash(tar -xzf aeon-ai-pay-x402-card-0.4.7.tgz)",
+      "Bash(tar -tzf aeon-ai-pay-x402-card-0.4.8.tgz)",
+      "Bash(tar -xzf aeon-ai-pay-x402-card-0.4.8.tgz)",
       "Bash(rm -rf ~/.claude/skills/x402-card)",
       "Bash(cp -r /tmp/package/skills/x402-card ~/.claude/skills/)",
-      "Bash(rm -rf /tmp/package /tmp/aeon-ai-pay-x402-card-0.4.7.tgz)",
+      "Bash(rm -rf /tmp/package /tmp/aeon-ai-pay-x402-card-0.4.8.tgz)",
       "Bash(npx @aeon-ai-pay/x402-card withdraw --to \"<你的主钱包地址>\" --amount 10)",
       "Bash(node /Users/yuanyong/work/aeon/x402-card/bin/cli.mjs --version)",
       "Bash(rm -rf ~/.npm/_npx)",
@@ -43,7 +43,10 @@
       "Bash(sed -i '' \"s/2 \\\\* \\(S - 2 - 2 \\\\* R\\)/4 * \\(S - 2 - 2 * R\\)/g\" /tmp/x402-fix5-preview.html)",
       "Bash(python3:*)",
       "Bash(sed -i '' 's/border: 1px solid #F7F7F7;/border: 1px solid #DBDEE3;/' /tmp/x402-fix7-preview.html)",
-      "Bash(sed -i '' 's/background: #fff; padding: 16px;/background: #F7F7F7; padding: 16px;/' /tmp/x402-fix7-preview.html)"
+      "Bash(sed -i '' 's/background: #fff; padding: 16px;/background: #F7F7F7; padding: 16px;/' /tmp/x402-fix7-preview.html)",
+      "Bash(grep -r \"payment\\\\|x402\" /Users/yuanyong/work/aeon/x402-card --include=*.md)",
+      "Bash(find /Users/yuanyong/work/aeon/x402-card/node_modules/@aeon-ai-pay -name *.d.ts)",
+      "Bash(xargs ls:*)"
     ]
   }
 }

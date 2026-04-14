@@ -1,20 +1,25 @@
 ---
 name: x402-card
 description: >
-  Trigger this skill when the user expresses intent to create, manage, or query a virtual card.
+  Trigger this skill when the user expresses intent to create, manage, or query a virtual card,
+  or wants to know what they can buy / do with the card.
 
   This includes intents such as:
   - "get a virtual card"
   - "create a card"
   - "card status"
   - "set up a card for an agent"
+  - "what can I buy"
+  - "show me what's available"
+  - "what can I do?"
+  - "what can I use the card for"
 
   Also, any request involving the creation of a one-time-use virtual Visa/Mastercard
   funded with cryptocurrency for agent use.
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.4.7"
+  version: "0.4.8"
   author: AEON-Project
   openclaw:
     requires:
@@ -132,7 +137,11 @@ Auto-creating your designated wallet...
 ### 2.0 金额确认
 
 - 金额必须落在 `amountLimits.min ~ amountLimits.max`（来自步骤 1 返回，禁止硬编码）
-- 若用户未指定金额，向用户展示有效区间并请求确认
+- 若用户未指定金额，使用以下文案（**逐字一致**，仅变量替换）：
+  > You can create a card of up to ${min}~${max} based on your current wallet balance. How much would you like to load onto the card？
+
+**执行前确认**（**文案必须完全一致**，仅变量替换）：
+> I'll create a virtual card loaded with ${amount}. This will debit approximately {usdt} USDT from your wallet. Please approve to continue：
 
 ### 2.1 执行创建
 
@@ -143,15 +152,28 @@ x402-card create --amount <usd> --poll
 CLI 内部依次执行：
 1. 参数与限额校验
 2. 链上余额检查（USDT + BNB）
-3. `approve` 授权（链上交易，消耗少量 BNB）
-4. EIP-712 签名（免 gas）→ 服务端提交实际转账
-5. 若带 `--poll` → 最多轮询 10 次，每次间隔 5 秒
+3. **若余额不足** → 自动发起 WalletConnect 充值（打开 QR 页面，等待用户在钱包 App 确认转账，超时 5 分钟）
+4. 充值完成后自动继续
+5. `approve` 授权（链上交易，消耗少量 BNB）
+6. EIP-712 签名（免 gas）→ 服务端提交实际转账
+7. 若带 `--poll` → 最多轮询 10 次，每次间隔 5 秒
 
 输出首行：
 
 ```
 > Creating Agent Card...
 ```
+
+⚠️ **`create` 命令含交互式 WalletConnect 流程（余额不足时），必须前台同步运行**：
+- 不要用 `run_in_background: true`
+- 不要在用户扫码完成前 kill 进程
+
+> 🔧 **如果误把 `create` 放到后台并已 kill**：
+> 用户的链上交易**很可能已经发出**（USDT 实际已到本地钱包）。
+> 此时**不要重新 topup**，直接：
+> 1. 跑 `x402-card wallet` 确认 USDT 已到账
+> 2. 若到账，直接重跑原 `create --amount <usd> --poll`
+> 3. 若未到账（用户也没真扫码），再前台重跑 `create`
 
 ### 2.2 情况分支
 
@@ -163,119 +185,39 @@ CLI 返回：
 ```
 向用户展示有效区间，请求重新确认。
 
-#### 情况 A.1：BNB 不足（approve 授权需要 gas）
+#### 情况 B：创建成功
 
-CLI 返回：
-```json
-{"error":"No BNB for approve transaction...","hint":"Run 'x402-card gas' or 'x402-card topup'"}
-```
-
-提示用户：
-```
-Balance check: no BNB for approve gas
-→ Run 'x402-card topup' (includes BNB automatically)
-→ Or run 'x402-card gas' to add BNB only
-```
-
-`topup` 会自动附带 0.001 BNB，**用户在钱包内确认 2 笔交易**（1 笔 USDT + 1 笔 BNB）。
-
-#### 情况 B：USDT 充足，创建成功
-
-CLI 输出 JSON 包含 `success: true` 与 `orderNo`。展示：
+CLI 输出 JSON 包含 `success: true` 与 `orderNo`。展示（**文案必须完全一致**，仅变量替换）：
 
 ```
-Card created successfully.
-Order No: {orderNo}
-Card: ****{last4}
-Status: {orderStatus}
+Virtual card ready with ${amount} loaded!
+- Card: {cardScheme} •••• {last4}
+- Balance: ${amount} USD
+- Order No: {orderNo}
+- Tx: {txHash}
 ```
 
 务必**记录 orderNo** —— 这是后续状态查询的唯一凭证。
 
-#### 情况 C：USDT 余额不足 → 启动 WalletConnect 自动充值
+#### 情况 C：充值签名超时（5 分钟）
 
 CLI 返回：
 ```json
-{"error":"Insufficient USDT balance","required":"5 USDT (approx)","available":"0 USDT","shortfall":"5.000000 USDT","address":"0x..."}
+{"error":"Payment approval timed out. Please try again."}
 ```
+转达给用户，询问是否重试。**不要自动重试**。
 
-向用户展示（**文案必须完全一致**，下方变量替换为实际值，其余文字逐字保留）：
+#### 情况 C.1：用户拒绝签名
 
+CLI 返回：
+```json
+{"error":"Payment approval was rejected. Please try again if you'd like to proceed."}
 ```
-Balance check: insufficient
-Required amount: {required} USDT
+转达给用户，**不要自动重试**。
 
-→ Fund manually: 0x0...{session_last4}
-→ Or auto-authorize transfer by link: WalletConnect (will open QR code)
-```
+#### 情况 C.2：充值后余额仍不足
 
-征得用户同意后执行：
-
-```bash
-x402-card topup --amount <required>
-```
-
-⚠️ **WalletConnect 流程为交互式，必须前台同步运行**：
-- 终端打印 QR 码 + `wc:` URI
-- 用户用钱包 App（MetaMask、Trust Wallet、imToken 等）扫码连接
-- 在钱包 App 中确认 1 笔 USDT 转账（金额 = `<required>`，目标 = 本地钱包）
-- 全过程最长 120 秒
-
-> 🚫 **绝对禁止**：
-> - 不要用 `run_in_background: true` 调用 `topup` / `gas` / `connect` 等 WalletConnect 命令
-> - 不要在用户扫码完成前 kill 进程
-> - 一旦命令进入后台或被中断，**即使用户在钱包内已签名**，CLI 也无法记录 `mainWallet` 与确认链上回执 → 会出现"已支付但未被检测"的假象
->
-> 🔧 **如果误把 `topup` 放到后台并已 kill**：
-> 用户的链上交易**很可能已经发出**（USDT 实际已到本地钱包）。
-> 此时**不要重新 topup**，直接：
-> 1. 跑 `x402-card wallet` 确认 USDT 已到账
-> 2. 若到账，直接重跑原 `create --amount <usd> --poll`
-> 3. 若未到账（用户也没真扫码），再前台 `topup`
-
-输出阶段提示：
-
-```
-> Funding flow triggered...
-Initializing WalletConnect session...
-Waiting for wallet confirmation...
-USDT transfer confirmed.
-```
-
-#### 情况 C.1：用户在钱包内拒绝交易
-
-CLI 返回 `"error": "Transaction rejected in wallet."`。
-告知用户本次充值已取消，询问是否重试。**不要自动重试**。
-
-#### 情况 C.2：WalletConnect 超时（120s 未扫码或未确认）
-
-CLI 返回连接/超时错误。告知用户超时，建议重新执行 `topup`。
-
-#### 情况 C.3：主钱包 USDT 不足（链上 revert）
-
-CLI 返回 `"error": "USDT transfer failed: ..."`。展示：
-
-```
-> Funding flow triggered...
-
-Source balance insufficient
-Funding aborted
-- 需要: {required}
-- 可用: {available}
-Add funds to continue
-```
-
-提示用户向其主钱包补 USDT，**不要循环重试**。
-
-#### 情况 C.4：充值成功 → 自动重试创建
-
-`topup` 返回 `success: true` 后，CLI 已自动把 `mainWallet` 字段写回 config（提取资金时会用到）。
-
-**自动重试一次** `create`：
-```bash
-x402-card create --amount <usd> --poll
-```
-若再次失败，按对应分支处理；不要进入第三次重试。
+CLI 返回 `Still insufficient USDT after funding` 错误。转达给用户。
 
 #### 情况 D：服务端网络/调用失败
 
@@ -448,6 +390,7 @@ Balance: {bnb} BNB
 | 提取资金到主钱包 | `withdraw [--to <addr>] [--amount <n>]` |
 | 为本地钱包补 BNB（withdraw 前置） | `gas [--amount <bnb>]` |
 | 了解 x402 协议本身 | 阅读 [x402-protocol](references/x402-protocol.md) |
+| 想知道能买什么 / 有什么功能 | 阅读 [store](references/store.md) |
 
 ---
 
@@ -463,9 +406,11 @@ Balance: {bnb} BNB
 | 自动建钱包 | `Auto-creating your designated wallet...` |
 | 钱包就绪 | `0x0...{last4} Ready. Proceed to create a card for your agent.` |
 | 创建卡片 | `> Creating Agent Card...` |
-| 余额不足首行 | `Balance check: insufficient` |
+| 创建前确认 | `I'll create a virtual card loaded with ${amount}. This will debit approximately {usdt} USDT from your wallet. Please approve to continue：` |
+| 创建成功 | `Virtual card ready with ${amount} loaded!` |
+| 签名超时 | `Payment approval timed out. Please try again.` |
+| 签名拒绝 | `Payment approval was rejected. Please try again if you'd like to proceed.` |
 | 充值流程 | `> Funding flow triggered...` |
-| 主钱包不足 | `Source balance insufficient` / `Funding aborted` / `Add funds to continue` |
 | 查询状态 | `> Fetching card status...` |
 | 提取资金 | `> Reclaiming funds...` |
 | 提取目标行 | `To: main wallet (0x0...{last4})` |
@@ -473,9 +418,10 @@ Balance: {bnb} BNB
 
 ### 关键短语（必须保留原词）
 
-- `Balance check`、`insufficient`、`Required amount`
-- `Fund manually`、`auto-authorize transfer by link`
-- `Source balance insufficient`、`Funding aborted`、`Add funds to continue`
+- `I'll create a virtual card loaded with`、`Please approve to continue`
+- `Virtual card ready with`、`loaded!`
+- `Payment approval timed out. Please try again.`
+- `Payment approval was rejected. Please try again if you'd like to proceed.`
 - `Card`、`State`、`Remaining balance`、`Usage`、`single-use`
 - `From`、`To`、`Amount`、`Status`、`completed`
 - `main wallet`（withdraw 目标行的字面文字）
@@ -507,7 +453,7 @@ Balance: {bnb} BNB
 - **绝不**在未经用户确认金额的情况下执行 `create` 或 `topup`
 - **绝不**记录或显示完整私钥；地址展示为 `0x0...last4` 格式
 - **绝不**跳过 `setup --check` 直接执行其他命令
-- **绝不**让 `topup` / `gas` / 任何 WalletConnect 命令在后台运行（必须前台同步等待）。误后台导致的"已支付未检测"问题，按步骤 2 情况 C 的「如果误把 topup 放到后台」恢复
-- **不要**在 `topup` 失败后无限重试，按对应模板提示后停止
+- **绝不**让 `create` / `topup` / `gas` / 任何含 WalletConnect 流程的命令在后台运行（必须前台同步等待）。误后台导致的"已支付未检测"问题，按步骤 2.1 的恢复指引处理
+- **不要**在充值/签名失败后自动重试，转达错误给用户后停止
 - **不要**轮询 `status` 超过 10 次；超时即停，提示用户记下 `orderNo` 自行查询
 - **不要**自行编造 `amountLimits`；始终使用 `setup --check` 返回的 `min/max`
