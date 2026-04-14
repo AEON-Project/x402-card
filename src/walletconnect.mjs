@@ -93,7 +93,7 @@ function openQRInBrowser(uri, statusPort) {
   .timer { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 16px; font-weight: 500; color: #1972f6; margin-bottom: 20px; }
   .timer svg { flex-shrink: 0; }
   .qr-wrap { position: relative; padding: 12px; margin-bottom: 20px; display: inline-block; }
-  .qr-border { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .qr-border, .qr-border-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
   .qr-border rect { fill: none; stroke: #191b1f; stroke-width: 2; rx: 16; ry: 16;
     stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
   .qr-border-bg rect { fill: none; stroke: #e5e5e5; stroke-width: 2; rx: 16; ry: 16; }
