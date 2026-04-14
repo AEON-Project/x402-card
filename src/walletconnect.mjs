@@ -86,20 +86,21 @@ function openQRInBrowser(uri, statusPort) {
   .logo { margin-bottom: 24px; }
   .card {
     text-align: center; padding: 32px 24px; border-radius: 12px; background: #fff;
-    border: 1px solid #e5e5e5; max-width: 375px; width: 100%; min-height: 436px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.06); max-width: 375px; width: 100%; min-height: 436px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
   .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 12px; line-height: 1.4; }
   .timer { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 16px; font-weight: 500; color: #1972f6; margin-bottom: 20px; }
   .timer svg { flex-shrink: 0; }
-  .qr-wrap { padding: 12px; border-radius: 16px; border: 1px solid #e5e5e5; margin-bottom: 20px; display: inline-block; }
+  .qr-wrap { position: relative; padding: 12px; margin-bottom: 20px; display: inline-block; }
+  .qr-border { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .qr-border rect { fill: none; stroke: #191b1f; stroke-width: 2; rx: 16; ry: 16;
+    stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+  .qr-border-bg rect { fill: none; stroke: #e5e5e5; stroke-width: 2; rx: 16; ry: 16; }
   canvas { display: block; border-radius: 8px; }
   .status-row { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 16px; }
-  .spinner-dots { display: flex; gap: 4px; justify-content: center; }
-  .spinner-dots span { width: 6px; height: 6px; border-radius: 50%; background: #00b42a; animation: blink 1.4s infinite both; }
-  .spinner-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .spinner-dots span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes blink { 0%,80%,100% { opacity: 0.3; } 40% { opacity: 1; } }
+  .loading-icon { width: 24px; height: 24px; animation: spin 1s steps(8) infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .status-text { font-size: 14px; font-weight: 400; color: #00b42a; }
   .check-icon { width: 24px; height: 24px; border-radius: 50%; background: #00b42a; display: flex; align-items: center; justify-content: center; }
   .check-icon svg { width: 14px; height: 14px; }
@@ -144,10 +145,12 @@ function openQRInBrowser(uri, statusPort) {
   const EXPIRE_MS = ${QR_EXPIRE_MS};
   const startTime = Date.now();
 
-  // 倒计时 SVG 图标
-  const CLOCK_SVG = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="8" stroke="#1972f6" stroke-width="1.5"/><path d="M9 5v4.5l3 1.5" stroke="#1972f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  // 提示 info 图标
-  const INFO_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" stroke="#737a86" stroke-width="1.2"/><path d="M8 7v4M8 5.5v.01" stroke="#737a86" stroke-width="1.2" stroke-linecap="round"/></svg>';
+  // 倒计时 SVG 图标（Figma 导出 1:63 clock 16x16）
+  const CLOCK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.667 8C14.667 11.68 11.68 14.667 8 14.667C4.32 14.667 1.334 11.68 1.334 8C1.334 4.32 4.32 1.333 8 1.333C11.68 1.333 14.667 4.32 14.667 8Z" stroke="#1A72F7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.476 10.12L8.409 8.887C8.049 8.674 7.756 8.16 7.756 7.74V5.007" stroke="#1A72F7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // 提示 info 图标（Figma 导出 1:43 Icon 20x20）
+  const INFO_SVG = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity="0.2" d="M10 18.333C14.6 18.333 18.331 14.602 18.331 10C18.331 5.397 14.6 1.666 10 1.666C5.395 1.666 1.664 5.397 1.664 10C1.664 14.602 5.395 18.333 10 18.333Z" fill="#737A86"/><path d="M10 13.333V10" stroke="#737A86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6.666H10.008" stroke="#737A86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // Loading 旋转图标（Figma 导出 1:50 loading-02 24x24）
+  const LOADING_SVG = '<svg class="loading-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity=".7" d="M4.922 5l2.828 2.828" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".6" d="M6 12H2" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".5" d="M4.922 19.078l2.828-2.828" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".4" d="M12 18v4" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".3" d="M19.078 19.078L16.25 16.25" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".2" d="M22 12h-4" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".1" d="M19.078 5L16.25 7.828" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/><path opacity=".8" d="M12 2v4" stroke="#191B1F" stroke-width="2.5" stroke-linecap="round"/></svg>';
   // 成功勾选
   const CHECK_SVG = '<div class="check-icon"><svg viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
 
@@ -210,14 +213,25 @@ function openQRInBrowser(uri, statusPort) {
     if (isConfirmed) {
       statusHTML = '<div class="status-row">' + CHECK_SVG + '<div class="status-text">Waiting for results...</div></div>';
     } else {
-      statusHTML = '<div class="status-row"><div class="spinner-dots"><span></span><span></span><span></span></div><div class="status-text">Waiting for results...</div></div>';
+      statusHTML = '<div class="status-row">' + LOADING_SVG + '<div class="status-text">Waiting for results...</div></div>';
     }
 
     const expireMin = Math.ceil(remaining / 60000);
 
+    // QR wrap 尺寸: canvas 200 + padding 12*2 = 224
+    const wrapSize = 224;
+    const r = 16;
+    const perimeter = 2 * (wrapSize - 2 * r) + 2 * Math.PI * r; // 圆角矩形周长
+    const progress = remaining / EXPIRE_MS;
+    const dashOffset = perimeter * (1 - progress);
+
     return '<div class="title">Scan the QR code with your wallet<br>to authorize transfer</div>' +
       '<div class="timer">' + CLOCK_SVG + ' ' + fmtTime(remaining) + ' Remaining</div>' +
-      '<div class="qr-wrap"><canvas id="qr"></canvas></div>' +
+      '<div class="qr-wrap" style="width:' + wrapSize + 'px;height:' + wrapSize + 'px;">' +
+        '<svg class="qr-border-bg" viewBox="0 0 ' + wrapSize + ' ' + wrapSize + '"><rect x="1" y="1" width="' + (wrapSize-2) + '" height="' + (wrapSize-2) + '"/></svg>' +
+        '<svg class="qr-border" viewBox="0 0 ' + wrapSize + ' ' + wrapSize + '"><rect id="qr-progress" x="1" y="1" width="' + (wrapSize-2) + '" height="' + (wrapSize-2) + '" stroke-dasharray="' + perimeter.toFixed(1) + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '" transform="rotate(-90 ' + (wrapSize/2) + ' ' + (wrapSize/2) + ')"/></svg>' +
+        '<canvas id="qr" style="position:relative;"></canvas>' +
+      '</div>' +
       statusHTML +
       '<div class="hint-bar">' + INFO_SVG + '<span>Expire in ' + expireMin + ' mins. This page will close automatically once the transfer is completed</span></div>';
   }
@@ -302,9 +316,16 @@ function openQRInBrowser(uri, statusPort) {
     if (timerEl) {
       const expireMin = Math.ceil(Math.max(0, remaining) / 60000);
       timerEl.innerHTML = CLOCK_SVG + ' ' + fmtTime(remaining) + ' Remaining';
-      // 更新 hint-bar 里的分钟数
       const hintSpan = document.querySelector('.hint-bar span');
       if (hintSpan) hintSpan.textContent = 'Expire in ' + expireMin + ' mins. This page will close automatically once the transfer is completed';
+    }
+    // 更新 QR 边框倒计时进度
+    const progressEl = document.getElementById('qr-progress');
+    if (progressEl) {
+      const wrapSize = 224, r = 16;
+      const perimeter = 2 * (wrapSize - 2 * r) + 2 * Math.PI * r;
+      const progress = Math.max(0, remaining) / EXPIRE_MS;
+      progressEl.setAttribute('stroke-dashoffset', (perimeter * (1 - progress)).toFixed(1));
     }
   }, 1000);
 
