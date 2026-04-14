@@ -9,6 +9,7 @@ import {
   initSignClient,
   connectWallet,
   requestERC20Transfer,
+  requestNativeTransfer,
   disconnectSession,
   startStatusServer,
   stopStatusServer,
@@ -19,6 +20,8 @@ import {
   USDT_BSC,
   DEFAULT_WC_PROJECT_ID,
 } from "../constants.mjs";
+
+const AUTO_GAS_BNB = "0.001"; // 自动附带的 BNB 用于 approve 授权 gas
 
 const FINAL_LINGER_MS = 2000; // 终态保留窗口，让浏览器页面拿到最后状态
 
@@ -56,6 +59,7 @@ export async function topup(opts) {
   let signClient = null;
   let session = null;
   let usdtTxHash = null;
+  let bnbTxHash = null;
   let exitCode = 0;
   let errorPayload = null;
 
@@ -96,8 +100,38 @@ export async function topup(opts) {
       throw new Error("USDT transfer transaction reverted");
     }
 
-    setStatus("confirmed", { txHash: usdtTxHash, amount, token: "USDT" });
     console.error("USDT transfer confirmed.");
+
+    // 自动附带少量 BNB（用于 BSC USDT approve 授权的 gas）
+    // 在同一 WalletConnect 会话内完成，用户需在钱包内确认第 2 笔交易
+    const skipGas = opts.skipGas || false;
+    if (!skipGas) {
+      try {
+        setStatus("signing", { amount: AUTO_GAS_BNB, token: "BNB", to: sessionAddress });
+        console.error(`\nRequesting BNB transfer: ${AUTO_GAS_BNB} BNB → ${sessionAddress} (for approve gas)`);
+        console.error("Please confirm the second transaction in your wallet app...");
+        bnbTxHash = await requestNativeTransfer(signClient, session, {
+          from: peerAddress,
+          to: sessionAddress,
+          value: AUTO_GAS_BNB,
+        });
+        setStatus("tx_submitted", { txHash: bnbTxHash, amount: AUTO_GAS_BNB, token: "BNB" });
+        console.error(`BNB transfer submitted: ${bnbTxHash}`);
+        const bnbReceipt = await publicClient.waitForTransactionReceipt({
+          hash: bnbTxHash,
+          timeout: 60_000,
+        });
+        if (bnbReceipt.status !== "success") {
+          throw new Error("BNB transfer reverted");
+        }
+        console.error("BNB transfer confirmed.");
+      } catch (bnbErr) {
+        // BNB 失败不阻断——USDT 已到账，BNB 可后续用 x402-card gas 补充
+        console.error(`Warning: BNB auto-transfer failed (${bnbErr.message}). USDT was transferred successfully. Run 'x402-card gas' to add BNB manually.`);
+      }
+    }
+
+    setStatus("confirmed", { txHash: usdtTxHash, amount, token: "USDT", bnbTxHash });
 
     // 写回 mainWallet
     config.mainWallet = peerAddress;
@@ -131,7 +165,7 @@ export async function topup(opts) {
   try {
     finalBalance = await getBalanceByAddress(sessionAddress);
   } catch {
-    finalBalance = { usdt: "unknown" };
+    finalBalance = { usdt: "unknown", bnb: "unknown" };
   }
 
   console.log(JSON.stringify({
@@ -139,9 +173,12 @@ export async function topup(opts) {
     sessionKey: {
       address: sessionAddress,
       usdt: finalBalance.usdt,
+      bnb: finalBalance.bnb,
     },
     transactions: {
       usdt: usdtTxHash || null,
+      bnb: bnbTxHash || null,
     },
+    note: "BNB is included automatically for BSC USDT approve gas.",
   }, null, 2));
 }

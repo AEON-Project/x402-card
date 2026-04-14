@@ -7,7 +7,7 @@ const program = new Command();
 program
   .name("x402-card")
   .description("Purchase virtual debit cards via x402 protocol")
-  .version("0.4.2");
+  .version("0.4.3");
 
 program
   .command("setup")
@@ -54,8 +54,9 @@ program
 
 program
   .command("topup")
-  .description("Top up local wallet USDT balance via WalletConnect (gasless)")
+  .description("Top up local wallet via WalletConnect (USDT + BNB for approve gas)")
   .option("--amount <usdt>", "USDT amount to add", "50")
+  .option("--skip-gas", "Skip automatic BNB transfer", false)
   .option("--project-id <id>", "WalletConnect Cloud project ID")
   .action(async (opts) => {
     const { topup } = await import("../src/commands/topup.mjs");

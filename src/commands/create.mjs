@@ -29,14 +29,25 @@ export async function create(opts) {
     process.exit(1);
   }
 
-  // 3. 前置余额检查（x402 在 BSC 上免 gas，无需检查 BNB）
+  // 3. 前置余额检查
+  // BSC USDT 不支持 EIP-3009，需要客户端先做一次 approve()（链上交易，需 BNB gas）
+  // 后续签名和实际转账由服务端执行（无需客户端 gas）
   console.error("Checking wallet balance...");
   try {
-    const { address, usdt } = await getWalletBalance(privateKey);
+    const { address, usdt, bnb, bnbRaw } = await getWalletBalance(privateKey);
     const usdtNum = parseFloat(usdt);
 
     console.error(`Wallet: ${address}`);
-    console.error(`Balance: ${usdt} USDT`);
+    console.error(`Balance: ${usdt} USDT, ${bnb} BNB`);
+
+    if (bnbRaw === 0n) {
+      console.error(JSON.stringify({
+        error: "No BNB for approve transaction. BSC USDT requires a one-time on-chain approve before payment signing. This needs a small amount of BNB for gas.",
+        address,
+        hint: "Run 'x402-card gas' to top up BNB via WalletConnect, or run 'x402-card topup' which includes BNB automatically.",
+      }));
+      process.exit(1);
+    }
 
     // USDT 需大于 amount（x402 协议会加唯一后缀，实际扣款略高于 amount 的 USDT 等值）
     if (usdtNum < amountNum) {

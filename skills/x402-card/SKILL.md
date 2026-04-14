@@ -14,7 +14,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.4.2"
+  version: "0.4.3"
   author: AEON-Project
   openclaw:
     requires:
@@ -32,9 +32,11 @@ compatibility: 需要 Node.js >= 18 和 npm
 通过 x402 HTTP 支付协议，使用 BSC 链上的 USDT 为 Agent 创建一次性使用的虚拟借记卡（Visa/Mastercard）。
 
 > ⚡ **Gas 模型**：
-> - **建卡（x402 协议）**：免 gas，本地钱包仅需 USDT
-> - **充值（topup）**：用户主钱包通过 WalletConnect 转 USDT，仅涉及 USDT
-> - **赎回（withdraw）**：本地钱包直发链上 ERC20 transfer，**需要少量 BNB 支付 gas**（建议 ≥ 0.0005 BNB）
+> BSC USDT 不支持 EIP-3009，建卡前客户端需做一次 `approve` 授权（链上交易），真正的 USDT 转账由服务端执行。
+> - **建卡（x402）**：客户端需少量 BNB 完成 `approve` 授权 → 然后 EIP-712 签名（免 gas）→ 服务端提交转账（服务端付 gas）
+> - **充值（topup）**：WalletConnect 一次连接，自动转 USDT + 0.001 BNB（用于 approve gas），用户需在钱包 App 内确认 **2 笔交易**
+> - **赎回（withdraw）**：本地钱包直发 ERC20 transfer，需要 BNB 付 gas
+> - **补 gas（gas）**：仅转 BNB（当 topup 时 BNB 转账失败或需要额外补充时用）
 
 ---
 
@@ -65,7 +67,7 @@ x402-card setup --show                 # 查看配置
 x402-card create --amount <usd> --poll # 创建虚拟卡
 x402-card status --order-no <orderNo>  # 查询卡片状态
 x402-card wallet                       # 查询本地钱包余额
-x402-card topup --amount <usdt>        # 自动充值 USDT（WalletConnect）
+x402-card topup --amount <usdt>        # 自动充值 USDT + BNB（WalletConnect, 2 笔确认）
 x402-card gas [--amount <bnb>]         # 给本地钱包充 BNB（WalletConnect, 用于 withdraw）
 x402-card withdraw [--to <addr>] [--amount <usdt>]  # 提取资金
 ```
@@ -140,9 +142,10 @@ x402-card create --amount <usd> --poll
 
 CLI 内部依次执行：
 1. 参数与限额校验
-2. 链上 USDT 余额检查（**免 gas，无需 BNB**）
-3. 调用 x402 接口建卡
-4. 若带 `--poll` → 最多轮询 10 次，每次间隔 5 秒
+2. 链上余额检查（USDT + BNB）
+3. `approve` 授权（链上交易，消耗少量 BNB）
+4. EIP-712 签名（免 gas）→ 服务端提交实际转账
+5. 若带 `--poll` → 最多轮询 10 次，每次间隔 5 秒
 
 输出首行：
 
@@ -159,6 +162,22 @@ CLI 返回：
 {"error":"Amount must be at least $0.6 ...","min":0.6,"max":800}
 ```
 向用户展示有效区间，请求重新确认。
+
+#### 情况 A.1：BNB 不足（approve 授权需要 gas）
+
+CLI 返回：
+```json
+{"error":"No BNB for approve transaction...","hint":"Run 'x402-card gas' or 'x402-card topup'"}
+```
+
+提示用户：
+```
+Balance check: no BNB for approve gas
+→ Run 'x402-card topup' (includes BNB automatically)
+→ Or run 'x402-card gas' to add BNB only
+```
+
+`topup` 会自动附带 0.001 BNB，**用户在钱包内确认 2 笔交易**（1 笔 USDT + 1 笔 BNB）。
 
 #### 情况 B：USDT 充足，创建成功
 
@@ -324,10 +343,15 @@ x402-card wallet
 ### 4.2 追加充值（同 2.C 流程）
 
 ```bash
-x402-card topup --amount <usdt>
+x402-card topup --amount <usdt>               # USDT + 0.001 BNB（默认）
+x402-card topup --amount <usdt> --skip-gas     # 仅 USDT，不附带 BNB
 ```
 
-只转 USDT。x402 在 BSC 上免 gas，本地钱包**不需要** BNB。
+`topup` 默认在一次 WalletConnect 会话内**同时转 USDT 和 0.001 BNB**，用户需在钱包 App 内依次确认 **2 笔交易**：
+1. 第 1 笔：USDT（指定金额）
+2. 第 2 笔：0.001 BNB（用于 BSC USDT approve 授权的 gas）
+
+若第 2 笔 BNB 失败（如拒绝或余额不足），**不阻断**——USDT 已到账，BNB 可后续用 `x402-card gas` 单独补充。
 
 ### 4.3 提取资金到主钱包
 
