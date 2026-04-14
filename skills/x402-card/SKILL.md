@@ -19,7 +19,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.4.8"
+  version: "0.4.9"
   author: AEON-Project
   openclaw:
     requires:
@@ -139,9 +139,7 @@ Auto-creating your designated wallet...
 - 金额必须落在 `amountLimits.min ~ amountLimits.max`（来自步骤 1 返回，禁止硬编码）
 - 若用户未指定金额，使用以下文案（**逐字一致**，仅变量替换）：
   > You can create a card of up to ${min}~${max} based on your current wallet balance. How much would you like to load onto the card？
-
-**执行前确认**（**文案必须完全一致**，仅变量替换）：
-> I'll create a virtual card loaded with ${amount}. This will debit approximately {usdt} USDT from your wallet. Please approve to continue：
+- 用户指定金额后，**立即执行**，不需要二次确认。直接进入 2.1。
 
 ### 2.1 执行创建
 
@@ -406,7 +404,6 @@ Balance: {bnb} BNB
 | 自动建钱包 | `Auto-creating your designated wallet...` |
 | 钱包就绪 | `0x0...{last4} Ready. Proceed to create a card for your agent.` |
 | 创建卡片 | `> Creating Agent Card...` |
-| 创建前确认 | `I'll create a virtual card loaded with ${amount}. This will debit approximately {usdt} USDT from your wallet. Please approve to continue：` |
 | 创建成功 | `Virtual card ready with ${amount} loaded!` |
 | 签名超时 | `Payment approval timed out. Please try again.` |
 | 签名拒绝 | `Payment approval was rejected. Please try again if you'd like to proceed.` |
@@ -418,7 +415,6 @@ Balance: {bnb} BNB
 
 ### 关键短语（必须保留原词）
 
-- `I'll create a virtual card loaded with`、`Please approve to continue`
 - `Virtual card ready with`、`loaded!`
 - `Payment approval timed out. Please try again.`
 - `Payment approval was rejected. Please try again if you'd like to proceed.`

@@ -20,8 +20,7 @@
 **若用户未指定金额**，向用户展示有效区间并请求确认（**文案必须完全一致**，仅变量替换）：
 > "You can create a card of up to ${min}~${max} based on your current wallet balance. How much would you like to load onto the card？"
 
-**执行前确认**（**文案必须完全一致**，仅变量替换）：
-> "I'll create a virtual card loaded with ${amount}. This will debit approximately {usdt} USDT from your wallet. Please approve to continue："
+用户指定金额后，**立即执行**，不需要二次确认。
 
 ### 步骤 2：执行
 

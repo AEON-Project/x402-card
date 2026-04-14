@@ -67,7 +67,7 @@ const ERC20_TRANSFER_ABI = [
 ];
 
 // 5 分钟超时（毫秒）
-const QR_EXPIRE_MS = 5 * 60 * 1000;
+const QR_EXPIRE_MS = 2 * 60 * 1000;
 
 /**
  * 生成 QR 码 HTML 页面并在浏览器中打开（按 Figma Ai card v1.2 设计稿）
