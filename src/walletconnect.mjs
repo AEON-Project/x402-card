@@ -71,8 +71,11 @@ const QR_EXPIRE_MS = 2 * 60 * 1000;
 
 /**
  * 生成 QR 码 HTML 页面并在浏览器中打开（按 Figma Ai card v1.2 设计稿）
+ * @param {string} uri - WalletConnect URI
+ * @param {number} statusPort - 状态服务端口
+ * @param {string|null} amount - 用户需要支付的 USDT 数量（如 "0.66"）
  */
-function openQRInBrowser(uri, statusPort) {
+function openQRInBrowser(uri, statusPort, amount) {
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>AEON — Wallet Connect</title>
 <style>
@@ -94,10 +97,11 @@ function openQRInBrowser(uri, statusPort) {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     flex: 1;
   }
-  .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 24px; line-height: 1.4; }
-  .timer { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 16px; font-weight: 500; color: #1972f6; margin-bottom: 16px; }
+  .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 16px; line-height: 1.4; }
+  .amount { font-size: 24px; font-weight: 700; color: #1972f6; margin-bottom: 16px; line-height: 1.2; letter-spacing: 0.2px; }
+  .timer { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 14px; font-weight: 400; color: #737a86; margin-top: 8px; margin-bottom: 16px; }
   .timer svg { flex-shrink: 0; }
-  .qr-wrap { position: relative; padding: 12px; margin-bottom: 16px; display: inline-block; }
+  .qr-wrap { position: relative; padding: 12px; display: inline-block; }
   .qr-border, .qr-border-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
   .qr-border path { fill: none; stroke: #191b1f; stroke-width: 2;
     stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
@@ -148,12 +152,13 @@ function openQRInBrowser(uri, statusPort) {
 
 <script>
   const URI = ${JSON.stringify(uri)};
+  const AMOUNT = ${JSON.stringify(amount || null)};
   const STATUS_URL = "http://127.0.0.1:${statusPort}/status";
   const EXPIRE_MS = ${QR_EXPIRE_MS};
   const startTime = Date.now();
 
-  // 倒计时 SVG 图标（Figma 导出 1:63 clock 16x16）
-  const CLOCK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.667 8C14.667 11.68 11.68 14.667 8 14.667C4.32 14.667 1.334 11.68 1.334 8C1.334 4.32 4.32 1.333 8 1.333C11.68 1.333 14.667 4.32 14.667 8Z" stroke="#1A72F7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.476 10.12L8.409 8.887C8.049 8.674 7.756 8.16 7.756 7.74V5.007" stroke="#1A72F7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  // 倒计时 SVG 图标（Figma 导出 1:63 clock 16x16）- 使用 currentColor 跟随 .timer 颜色
+  const CLOCK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.667 8C14.667 11.68 11.68 14.667 8 14.667C4.32 14.667 1.334 11.68 1.334 8C1.334 4.32 4.32 1.333 8 1.333C11.68 1.333 14.667 4.32 14.667 8Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.476 10.12L8.409 8.887C8.049 8.674 7.756 8.16 7.756 7.74V5.007" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // 提示 info 图标（Figma 导出 1:43 Icon 20x20）
   const INFO_SVG = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity="0.2" d="M10 18.333C14.6 18.333 18.331 14.602 18.331 10C18.331 5.397 14.6 1.666 10 1.666C5.395 1.666 1.664 5.397 1.664 10C1.664 14.602 5.395 18.333 10 18.333Z" fill="#737A86"/><path d="M10 13.333V10" stroke="#737A86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 6.666H10.008" stroke="#737A86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   // Loading 旋转图标（Figma 导出 1:50 loading-02 24x24）
@@ -208,6 +213,18 @@ function openQRInBrowser(uri, statusPort) {
     return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   }
 
+  function fmtAmount(v) {
+    if (v == null || v === '') return '';
+    // 完整显示原始金额（不做取整），去除末尾多余的 0，整数部分加千分位
+    const s = String(v);
+    const neg = s.startsWith('-') ? '-' : '';
+    const body = neg ? s.slice(1) : s;
+    let [intPart, decPart] = body.split('.');
+    if (decPart) decPart = decPart.replace(/0+$/, '');
+    const intWithComma = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return neg + intWithComma + (decPart ? '.' + decPart : '') + ' USDT';
+  }
+
   // ====== 页面渲染函数 ======
 
   function renderQR(data) {
@@ -238,13 +255,16 @@ function openQRInBrowser(uri, statusPort) {
     const progress = remaining / EXPIRE_MS;
     const dashOffset = -PL * (1 - progress);
 
+    const amountHTML = AMOUNT ? '<div class="amount">' + fmtAmount(AMOUNT) + '</div>' : '';
+
     return '<div class="title">Scan the QR code with your wallet<br>to authorize transfer</div>' +
-      '<div class="timer">' + CLOCK_SVG + ' ' + fmtTime(remaining) + ' Remaining</div>' +
+      amountHTML +
       '<div class="qr-wrap" style="width:' + S + 'px;height:' + S + 'px;">' +
         '<svg class="qr-border-bg" viewBox="0 0 ' + S + ' ' + S + '"><path d="' + qrPath + '"/></svg>' +
         '<svg class="qr-border" viewBox="0 0 ' + S + ' ' + S + '"><path id="qr-progress" d="' + qrPath + '" pathLength="' + PL + '" stroke-dasharray="' + PL + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '"/></svg>' +
         '<canvas id="qr" style="position:relative;"></canvas>' +
       '</div>' +
+      '<div class="timer">' + CLOCK_SVG + ' ' + fmtTime(remaining) + ' Remaining</div>' +
       statusHTML +
       '<div class="hint-bar">' + INFO_SVG + '<span>Expire in ' + expireMin + ' mins. This page will close automatically once the transfer is completed</span></div>';
   }
@@ -393,9 +413,11 @@ export async function initSignClient(projectId) {
 /**
  * 连接钱包：展示 QR 码，等待用户扫码授权
  * @param {SignClient} signClient
+ * @param {number} statusPort
+ * @param {string|null} amount - 需要展示的 USDT 金额（如 "0.66"）
  * @returns {{ session: object, peerAddress: string }}
  */
-export async function connectWallet(signClient, statusPort) {
+export async function connectWallet(signClient, statusPort, amount = null) {
   const { uri, approval } = await signClient.connect({
     optionalNamespaces: {
       eip155: {
@@ -407,7 +429,7 @@ export async function connectWallet(signClient, statusPort) {
   });
 
   // 生成 QR 码页面（含状态轮询）并在浏览器中打开
-  openQRInBrowser(uri, statusPort);
+  openQRInBrowser(uri, statusPort, amount);
   console.error("QR code opened in browser. Scan it with your wallet app.");
   console.error("Waiting for wallet approval...");
 

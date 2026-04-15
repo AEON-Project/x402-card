@@ -179,7 +179,7 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
     signClient = await initSignClient(projectId);
 
     let peerAddress;
-    ({ session, peerAddress } = await connectWallet(signClient, statusPort));
+    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount));
     console.error(`Wallet connected: ${peerAddress}`);
 
     const { createPublicClient, http } = await import("viem");
