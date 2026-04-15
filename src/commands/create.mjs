@@ -20,10 +20,12 @@ const AUTO_GAS_BNB = "0.001";
 const FINAL_LINGER_MS = 2000;
 
 export async function create(opts) {
+  console.error("Creating Agent Card...");
   const serviceUrl = resolve(opts.serviceUrl, "X402_CARD_SERVICE_URL", "serviceUrl");
   const privateKey = resolve(opts.privateKey, "EVM_PRIVATE_KEY", "privateKey");
   const { amount, poll } = opts;
   const amountNum = parseFloat(amount);
+
 
   // 1. 参数校验
   if (!serviceUrl) {
@@ -34,7 +36,7 @@ export async function create(opts) {
     console.error(JSON.stringify({ error: "Wallet not configured. Run: x402-card setup --check" }));
     process.exit(1);
   }
-
+  console.error("Balance check: insufficient");
   // 2. 限额校验
   if (isNaN(amountNum) || amountNum < MIN_AMOUNT) {
     console.error(JSON.stringify({ error: `Amount must be at least $${MIN_AMOUNT}. Allowed range: $${MIN_AMOUNT} ~ $${MAX_AMOUNT} USD.`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
@@ -44,6 +46,7 @@ export async function create(opts) {
     console.error(JSON.stringify({ error: `Amount must not exceed $${MAX_AMOUNT}. Allowed range: $${MIN_AMOUNT} ~ $${MAX_AMOUNT} USD.`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
     process.exit(1);
   }
+  console.error(`Required amount: ${amountNum}`);
 
   // 3. 前置余额检查 + 自动 WalletConnect 充值
   console.error("Checking wallet balance...");
@@ -72,7 +75,7 @@ export async function create(opts) {
 
   // 余额不足：通过 WalletConnect 内联充值
   if (needTopup || needGas) {
-    console.error("Insufficient balance. Initiating WalletConnect funding...");
+    console.error("Funding flow triggered...");
     await inlineWalletConnectTopup({
       sessionAddress,
       amount: needTopup ? String(amountNum) : null,

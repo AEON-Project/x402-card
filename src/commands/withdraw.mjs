@@ -22,6 +22,7 @@ const ERC20_TRANSFER_ABI = [
 ];
 
 export async function withdraw(opts) {
+  console.error("Reclaiming funds...");
   const config = loadConfig();
 
   if (!config.privateKey || !config.address) {

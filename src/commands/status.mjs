@@ -13,6 +13,7 @@ export async function status(opts) {
 
   const url = `${serviceUrl}/open/ai/x402/card/status?orderNo=${orderNo}`;
 
+
   if (!poll) {
     try {
       const res = await axios.get(url);

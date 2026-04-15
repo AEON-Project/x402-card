@@ -249,7 +249,7 @@ x402-card status --order-no <orderNo> --poll  # 轮询直至终态
 ```
 > Fetching card status...
 
-Card: ****{last4}
+Card: ****
 State: {Active | Used | Expired | Pending | Failed}
 Remaining balance: {balance} USD
 Usage: {used} / {total} (single-use)

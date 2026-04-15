@@ -87,10 +87,12 @@ function openQRInBrowser(uri, statusPort) {
   .outer {
     width: 375px; min-height: 468px; border-radius: 16px; border: 1px solid #DBDEE3;
     background: #F7F7F7; padding: 16px;
+    display: flex; flex-direction: column;
   }
   .card {
     text-align: center; padding: 24px 16px 16px; border-radius: 12px; background: #fff;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
+    flex: 1;
   }
   .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 24px; line-height: 1.4; }
   .timer { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 16px; font-weight: 500; color: #1972f6; margin-bottom: 16px; }
