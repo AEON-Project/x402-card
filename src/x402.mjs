@@ -63,6 +63,35 @@ export function createX402Api(privateKey) {
 }
 
 /**
+ * 第一次发起 x402 请求（不带签名），从 402 响应中提取实际付款要求
+ * @param {string} url
+ * @returns {Promise<{amountUsdt: number, amountWei: string, decimals: number, tokenAddress: string, payToAddress: string, orderNo: string|null}>}
+ */
+export async function fetchPaymentRequirements(url) {
+  const rawClient = axios.create();
+  try {
+    await rawClient.get(url);
+    throw new Error("Expected HTTP 402 but got 200");
+  } catch (err) {
+    if (err.response?.status !== 402) throw err;
+    const data = err.response.data;
+    const accept = data?.accepts?.[0];
+    if (!accept) throw new Error("No payment requirements in 402 response");
+    const decimals = accept.tokenDecimals || 18;
+    const amountWei = BigInt(accept.maxAmountRequired || accept.amountRequired);
+    const amountUsdt = Number(amountWei) / Math.pow(10, decimals);
+    return {
+      amountUsdt,
+      amountWei: amountWei.toString(),
+      decimals,
+      tokenAddress: accept.tokenAddress,
+      payToAddress: accept.payToAddress,
+      orderNo: data.orderNo || null,
+    };
+  }
+}
+
+/**
  * 从响应头中解码 PAYMENT-RESPONSE
  * @param {object} headers - axios response headers
  * @returns {object|null}

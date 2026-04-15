@@ -1,4 +1,4 @@
-import { createX402Api, decodePaymentResponse } from "../x402.mjs";
+import { createX402Api, decodePaymentResponse, fetchPaymentRequirements } from "../x402.mjs";
 import { resolve, loadConfig, saveConfig } from "../config.mjs";
 import { getWalletBalance } from "../balance.mjs";
 import {
@@ -36,7 +36,6 @@ export async function create(opts) {
     console.error(JSON.stringify({ error: "Wallet not configured. Run: x402-card setup --check" }));
     process.exit(1);
   }
-  console.error("Balance check: insufficient");
   // 2. 限额校验
   if (isNaN(amountNum) || amountNum < MIN_AMOUNT) {
     console.error(JSON.stringify({ error: `Amount must be at least $${MIN_AMOUNT}. Allowed range: $${MIN_AMOUNT} ~ $${MAX_AMOUNT} USD.`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
@@ -46,13 +45,26 @@ export async function create(opts) {
     console.error(JSON.stringify({ error: `Amount must not exceed $${MAX_AMOUNT}. Allowed range: $${MIN_AMOUNT} ~ $${MAX_AMOUNT} USD.`, min: MIN_AMOUNT, max: MAX_AMOUNT }));
     process.exit(1);
   }
-  console.error(`Required amount: ${amountNum}`);
 
-  // 3. 前置余额检查 + 自动 WalletConnect 充值
+  // 3. 第一次请求 x402，获取实际付款要求（带唯一后缀的真实 USDT 金额）
+  const url = `${serviceUrl}/open/ai/x402/card/create?amount=${amount}`;
+  console.error("Fetching payment requirements...");
+  let requiredUsdt;
+  try {
+    const req = await fetchPaymentRequirements(url);
+    requiredUsdt = req.amountUsdt;
+    console.error(`Required: ${requiredUsdt} USDT (pay to ${req.payToAddress})`);
+  } catch (e) {
+    console.error(JSON.stringify({ error: `Failed to fetch payment requirements: ${e.message}` }));
+    process.exit(1);
+  }
+
+  // 4. 前置余额检查 + 自动 WalletConnect 充值（基于 x402 返回的真实金额）
   console.error("Checking wallet balance...");
   let needTopup = false;
   let needGas = false;
   let sessionAddress;
+  let topupAmount = null;
 
   try {
     const { address, usdt, bnb, bnbRaw } = await getWalletBalance(privateKey);
@@ -65,8 +77,11 @@ export async function create(opts) {
     if (bnbRaw === 0n) {
       needGas = true;
     }
-    if (usdtNum < amountNum) {
+    if (usdtNum < requiredUsdt) {
       needTopup = true;
+      // 充值缺口 + 1% 缓冲（应对第二次请求唯一后缀波动）
+      const shortfall = requiredUsdt - usdtNum;
+      topupAmount = (shortfall * 1.01).toFixed(6);
     }
   } catch (e) {
     console.error(JSON.stringify({ error: `Balance check failed: ${e.message}` }));
@@ -78,7 +93,7 @@ export async function create(opts) {
     console.error("Funding flow triggered...");
     await inlineWalletConnectTopup({
       sessionAddress,
-      amount: needTopup ? String(amountNum) : null,
+      amount: needTopup ? topupAmount : null,
       needGas,
     });
 
@@ -96,10 +111,10 @@ export async function create(opts) {
         }));
         process.exit(1);
       }
-      if (usdtNum < amountNum) {
+      if (usdtNum < requiredUsdt) {
         console.error(JSON.stringify({
           error: `Still insufficient USDT after funding.`,
-          required: `${amountNum} USDT (approx)`,
+          required: `${requiredUsdt} USDT`,
           available: `${usdt} USDT`,
           address: sessionAddress,
         }));
@@ -111,9 +126,8 @@ export async function create(opts) {
     }
   }
 
-  // 4. 执行 x402 建卡
+  // 5. 执行 x402 建卡（使用 session key 私钥签名）
   const { api, address, getOrderNo } = createX402Api(privateKey);
-  const url = `${serviceUrl}/open/ai/x402/card/create?amount=${amount}`;
 
   console.error(`Creating card: $${amount} USD via ${url}`);
 
