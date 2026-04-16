@@ -280,7 +280,8 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
 async function pollStatus(serviceUrl, orderNo) {
   const { default: axios } = await import("axios");
   for (let i = 1; i <= MAX_POLLS; i++) {
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+    // 第一次立即查询，后续每次间隔 POLL_INTERVAL
+    if (i > 1) await new Promise((r) => setTimeout(r, POLL_INTERVAL));
     try {
       const res = await axios.get(
         `${serviceUrl}/open/ai/x402/card/status?orderNo=${orderNo}`
