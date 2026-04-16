@@ -145,7 +145,11 @@ export async function create(opts) {
 
     console.log(JSON.stringify(result, null, 2));
 
-    if (poll && orderNo) {
+    // 如果初始响应已包含最终状态，跳过轮询
+    const initialStatus = response.data?.model?.orderStatus;
+    if (initialStatus === "SUCCESS" || initialStatus === "FAIL") {
+      console.error(`Card order already ${initialStatus}, no polling needed.`);
+    } else if (poll && orderNo) {
       console.error(`\nPolling status for orderNo: ${orderNo}`);
       await pollStatus(serviceUrl, orderNo);
     } else if (poll && !orderNo) {
@@ -280,8 +284,11 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
 async function pollStatus(serviceUrl, orderNo) {
   const { default: axios } = await import("axios");
   for (let i = 1; i <= MAX_POLLS; i++) {
-    // 第一次立即查询，后续每次间隔 POLL_INTERVAL
-    if (i > 1) await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+    // 第一次立即查，前5次每2秒快速轮询，之后每5秒
+    if (i > 1) {
+      const delay = i <= 5 ? 2000 : POLL_INTERVAL;
+      await new Promise((r) => setTimeout(r, delay));
+    }
     try {
       const res = await axios.get(
         `${serviceUrl}/open/ai/x402/card/status?orderNo=${orderNo}`
