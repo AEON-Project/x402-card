@@ -145,9 +145,18 @@ export async function create(opts) {
 
     console.log(JSON.stringify(result, null, 2));
 
-    // 如果初始响应已包含最终状态，跳过轮询
+    // 在整个响应中递归查找 cardStatus
+    function findCardStatus(obj) {
+      if (!obj || typeof obj !== 'object') return null;
+      if (obj.cardStatus) return obj.cardStatus;
+      for (const v of Object.values(obj)) {
+        const found = findCardStatus(v);
+        if (found) return found;
+      }
+      return null;
+    }
     const initialOrderStatus = response.data?.model?.orderStatus;
-    const initialCardStatus = response.data?.model?.cardStatus;
+    const initialCardStatus = findCardStatus(response.data);
     if (initialOrderStatus === "SUCCESS" || initialOrderStatus === "FAIL" || initialCardStatus === "ACTIVE") {
       console.error(`Card ready (orderStatus=${initialOrderStatus}, cardStatus=${initialCardStatus}), no polling needed.`);
     } else if (poll && orderNo) {
@@ -156,6 +165,7 @@ export async function create(opts) {
     } else if (poll && !orderNo) {
       console.error("Warning: No orderNo available for polling. Query status manually.");
     }
+    process.exit(0);
   } catch (error) {
     const result = {
       success: false,
