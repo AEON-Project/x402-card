@@ -7,7 +7,7 @@ const program = new Command();
 program
   .name("x402-card")
   .description("Purchase virtual debit cards via x402 protocol")
-  .version("0.5.5");
+  .version("0.5.6");
 
 program
   .command("setup")

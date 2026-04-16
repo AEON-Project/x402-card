@@ -146,9 +146,10 @@ export async function create(opts) {
     console.log(JSON.stringify(result, null, 2));
 
     // 如果初始响应已包含最终状态，跳过轮询
-    const initialStatus = response.data?.model?.orderStatus;
-    if (initialStatus === "SUCCESS" || initialStatus === "FAIL") {
-      console.error(`Card order already ${initialStatus}, no polling needed.`);
+    const initialOrderStatus = response.data?.model?.orderStatus;
+    const initialCardStatus = response.data?.model?.cardStatus;
+    if (initialOrderStatus === "SUCCESS" || initialOrderStatus === "FAIL" || initialCardStatus === "ACTIVE") {
+      console.error(`Card ready (orderStatus=${initialOrderStatus}, cardStatus=${initialCardStatus}), no polling needed.`);
     } else if (poll && orderNo) {
       console.error(`\nPolling status for orderNo: ${orderNo}`);
       await pollStatus(serviceUrl, orderNo);
@@ -296,7 +297,7 @@ async function pollStatus(serviceUrl, orderNo) {
       const model = res.data?.model;
       console.error(`[${i}/${MAX_POLLS}] orderStatus=${model?.orderStatus} channelStatus=${model?.channelStatus}`);
 
-      if (model?.orderStatus === "SUCCESS" || model?.orderStatus === "FAIL") {
+      if (model?.orderStatus === "SUCCESS" || model?.orderStatus === "FAIL" || model?.cardStatus === "ACTIVE") {
         console.log(JSON.stringify({ pollResult: model }, null, 2));
         return;
       }
