@@ -19,7 +19,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.5.7"
+  version: "0.5.8"
   author: AEON-Project
   openclaw:
     requires:
@@ -185,7 +185,15 @@ CLI 返回：
 
 #### 情况 B：创建成功
 
-CLI 输出 JSON 包含 `success: true` 与 `orderNo`。展示（**文案必须完全一致**，仅变量替换）：
+CLI 输出 JSON 包含 `success: true` 与 `orderNo`。
+
+查询卡片详情可能需要约 30 秒，先输出等待提示：
+
+```
+> Fetching card details, please wait...
+```
+
+详情返回后展示（**文案必须完全一致**，仅变量替换）：
 
 ```
 Virtual card ready with ${amount} loaded!
@@ -408,6 +416,7 @@ Balance: {bnb} BNB
 | 签名超时 | `Payment approval timed out. Please try again.` |
 | 签名拒绝 | `Payment approval was rejected. Please try again if you'd like to proceed.` |
 | 充值流程 | `> Funding flow triggered...` |
+| 查询卡详情 | `> Fetching card details, please wait...` |
 | 查询状态 | `> Fetching card status...` |
 | 提取资金 | `> Reclaiming funds...` |
 | 提取目标行 | `To: main wallet (0x0...{last4})` |
@@ -415,6 +424,7 @@ Balance: {bnb} BNB
 
 ### 关键短语（必须保留原词）
 
+- `Fetching card details, please wait...`
 - `Virtual card ready with`、`loaded!`
 - `Payment approval timed out. Please try again.`
 - `Payment approval was rejected. Please try again if you'd like to proceed.`

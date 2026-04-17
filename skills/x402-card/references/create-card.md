@@ -78,7 +78,12 @@ CLI 自动处理完整流程：
 
 ### 步骤 4：展示给用户
 
-成功时（**文案必须完全一致**，仅变量替换）：
+查询卡片详情可能需要约 30 秒，先输出等待提示（**文案必须完全一致**）：
+```
+> Fetching card details, please wait...
+```
+
+详情返回后，成功时（**文案必须完全一致**，仅变量替换）：
 ```
 Virtual card ready with ${amount} loaded!
 - Card: {cardScheme} •••• {last4}
