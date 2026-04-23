@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import { checkForUpdates } from "../src/update-check.mjs";
 
-const CURRENT_VERSION = "0.6.2";
+const CURRENT_VERSION = "0.6.3";
 checkForUpdates(CURRENT_VERSION);
 
 const program = new Command();

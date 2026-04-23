@@ -59,12 +59,18 @@ function upgradeInBackground(latest) {
     writeFileSync(CACHE_FILE, JSON.stringify({ latest, upgrading: true, ts: Date.now() }));
   } catch {}
 
-  const postinstallPath = join(__dirname, "..", "scripts", "postinstall.mjs");
+  // npm install -g 后需手动执行 postinstall 复制 skills 到 ~/.claude/skills/
+  // 因为 detached 子进程中 npm lifecycle hooks 可能不触发
+  const npmRoot = "`npm root -g`";
   const script = `
     const { execFileSync, execSync } = require("child_process");
     const { writeFileSync, mkdirSync } = require("fs");
     try {
       execFileSync("npm", ["install", "-g", "${PKG_NAME}@" + "${latest}"], { timeout: 120000 });
+      // 手动执行 postinstall 确保 skills 文件被复制
+      const root = execFileSync("npm", ["root", "-g"], { timeout: 10000 }).toString().trim();
+      const postinstall = root + "/${PKG_NAME}/scripts/postinstall.mjs";
+      execFileSync("node", [postinstall], { timeout: 10000 });
       mkdirSync("${CACHE_DIR.replace(/\\/g, "\\\\")}", { recursive: true });
       writeFileSync("${CACHE_FILE.replace(/\\/g, "\\\\")}", JSON.stringify({ latest: "${latest}", upgraded: true, ts: Date.now() }));
     } catch {
