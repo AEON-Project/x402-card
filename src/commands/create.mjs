@@ -79,9 +79,8 @@ export async function create(opts) {
     }
     if (usdtNum < requiredUsdt) {
       needTopup = true;
-      // 充值缺口 + 1% 缓冲（应对第二次请求唯一后缀波动）
       const shortfall = requiredUsdt - usdtNum;
-      topupAmount = (shortfall * 1.01).toFixed(6);
+      topupAmount = shortfall.toFixed(6);
     }
   } catch (e) {
     console.error(JSON.stringify({ error: `Balance check failed: ${e.message}` }));

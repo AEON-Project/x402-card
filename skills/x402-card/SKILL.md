@@ -138,7 +138,7 @@ Auto-creating your designated wallet...
 
 - 金额必须落在 `amountLimits.min ~ amountLimits.max`（来自步骤 1 返回，禁止硬编码）
 - 若用户未指定金额，使用以下文案（**逐字一致**，仅变量替换）：
-  > You can create a card of up to ${min}~${max} based on your current wallet balance. How much would you like to load onto the card？
+  > You can create a card of up to ${min}~${max}. How much would you like to load onto the card？
 - 用户指定金额后，**立即执行**，不需要二次确认。直接进入 2.1。
 
 ### 2.1 执行创建

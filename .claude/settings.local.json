@@ -55,7 +55,10 @@
       "Bash(node -e \":*)",
       "Bash(npm list:*)",
       "Bash(npm root:*)",
-      "Read(//usr/local/lib/node_modules/@aeon-ai-pay/x402-card/skills/**)"
+      "Read(//usr/local/lib/node_modules/@aeon-ai-pay/x402-card/skills/**)",
+      "Bash(x402-card setup:*)",
+      "Bash(grep -r \"percent\\\\|markup\\\\|fee\\\\|premium\\\\|charge\" /Users/yuanyong/work/aeon/x402-card/src --include=*.mjs --include=*.js)",
+      "Bash(find /Users/yuanyong/work/aeon/x402-card -name *.md -o -name *.txt)"
     ]
   }
 }
