@@ -19,7 +19,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.6.3"
+  version: "0.6.4"
   author: AEON-Project
   openclaw:
     requires:

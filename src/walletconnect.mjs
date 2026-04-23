@@ -284,14 +284,14 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
 
   function renderExpired() {
     return '<div class="result-card">' + EXPIRED_SVG +
-      '<div class="result-title">Payment approval timed out</div>' +
-      '<div class="result-sub">Please try again.</div></div>';
+      '<div class="result-title">Request expired</div>' +
+      '<div class="result-sub">This request has expired. Ask agent to send a new one</div></div>';
   }
 
   function renderRejected() {
     return '<div class="result-card">' + REJECTED_SVG +
-      '<div class="result-title">Payment approval was rejected</div>' +
-      '<div class="result-sub">Please try again if you\\\'d like to proceed.</div></div>';
+      '<div class="result-title">Request rejected</div>' +
+      '<div class="result-sub">You have rejected this request. Ask agent to send a new one</div></div>';
   }
 
   function renderFailed(error) {
