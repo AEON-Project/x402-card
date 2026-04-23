@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { checkForUpdates } from "../src/update-check.mjs";
+
+const CURRENT_VERSION = "0.6.1";
+checkForUpdates(CURRENT_VERSION);
 
 const program = new Command();
 
 program
   .name("x402-card")
   .description("Purchase virtual debit cards via x402 protocol")
-  .version("0.6.0");
+  .version(CURRENT_VERSION);
 
 program
   .command("setup")
