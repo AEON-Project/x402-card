@@ -10,6 +10,7 @@ import {
   connectWallet,
   requestNativeTransfer,
   disconnectSession,
+  normalizeWalletError,
   startStatusServer,
   stopStatusServer,
   setStatus,
@@ -95,10 +96,15 @@ export async function gas(opts) {
     config.mainWallet = peerAddress;
     saveConfig(config);
   } catch (error) {
+    normalizeWalletError(error);
     const isRejected = error.message?.includes("rejected") || error.code === 5000;
-    if (isRejected) {
-      setStatus("rejected", { error: "Transaction rejected in wallet." });
-      errorPayload = { error: "Transaction rejected in wallet." };
+    const isTimeout = error.message?.includes("timed out");
+    if (isTimeout) {
+      setStatus("expired");
+      errorPayload = { error: "Payment approval timed out. Please try again." };
+    } else if (isRejected) {
+      setStatus("rejected", { error: "Payment approval was rejected." });
+      errorPayload = { error: "Payment approval was rejected. Please try again if you'd like to proceed." };
     } else {
       setStatus("failed", { error: error.message });
       errorPayload = { error: `BNB transfer failed: ${error.message}` };

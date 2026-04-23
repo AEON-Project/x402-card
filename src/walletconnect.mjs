@@ -413,7 +413,7 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
  */
 export async function initSignClient(projectId) {
   const INIT_TIMEOUT_MS = 15_000;
-  return await Promise.race([
+  const client = await Promise.race([
     SignClient.init({
       projectId,
       metadata: {
@@ -427,6 +427,16 @@ export async function initSignClient(projectId) {
       setTimeout(() => reject(new Error("WalletConnect init timed out (15s). Check your network connection.")), INIT_TIMEOUT_MS)
     ),
   ]);
+
+  // 清理残留的旧 session，避免钱包端报"请先断开 DApp"
+  try {
+    const sessions = client.session.getAll();
+    for (const s of sessions) {
+      await client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup stale session" } }).catch(() => {});
+    }
+  } catch {}
+
+  return client;
 }
 
 /**
@@ -542,6 +552,30 @@ export async function requestNativeTransfer(signClient, session, { from, to, val
   ]);
 
   return txHash;
+}
+
+/**
+ * 标准化钱包错误消息：将已知的中文/多语言错误映射为统一英文
+ * @param {Error} error
+ * @returns {Error} 同一个 error 对象，message 已替换
+ */
+export function normalizeWalletError(error) {
+  const msg = error?.message || "";
+  const patterns = [
+    // 拒绝类
+    { test: /拒绝|用户取消|User rejected|User denied|declined/i, replacement: "rejected" },
+    // 断开连接类
+    { test: /断开.*连接|断开.*DApp|disconnect.*DApp|session.*expired|session.*disconnected/i, replacement: "rejected" },
+    // 超时类
+    { test: /超时|timed?\s*out|timeout/i, replacement: "timed out" },
+  ];
+  for (const { test, replacement } of patterns) {
+    if (test.test(msg)) {
+      error.message = replacement;
+      return error;
+    }
+  }
+  return error;
 }
 
 /**

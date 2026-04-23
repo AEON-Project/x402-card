@@ -11,6 +11,7 @@ import {
   requestERC20Transfer,
   requestNativeTransfer,
   disconnectSession,
+  normalizeWalletError,
   startStatusServer,
   stopStatusServer,
   setStatus,
@@ -263,6 +264,7 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
     config.mainWallet = peerAddress;
     saveConfig(config);
   } catch (error) {
+    normalizeWalletError(error);
     const isRejected = error.message?.includes("rejected") || error.code === 5000;
     const isTimeout = error.message?.includes("timed out");
 
