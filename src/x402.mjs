@@ -64,8 +64,9 @@ export function createX402Api(privateKey) {
 
 /**
  * 第一次发起 x402 请求（不带签名），从 402 响应中提取实际付款要求
+ * 同时保留完整的 402 响应数据和原始请求配置，供后续手动签名使用
  * @param {string} url
- * @returns {Promise<{amountUsdt: number, amountWei: string, decimals: number, tokenAddress: string, payToAddress: string, orderNo: string|null}>}
+ * @returns {Promise<{amountUsdt: number, amountWei: string, decimals: number, tokenAddress: string, payToAddress: string, orderNo: string|null, raw402Response: object, requestConfig: object}>}
  */
 export async function fetchPaymentRequirements(url) {
   const rawClient = axios.create();
@@ -87,6 +88,8 @@ export async function fetchPaymentRequirements(url) {
       tokenAddress: accept.tokenAddress,
       payToAddress: accept.payToAddress,
       orderNo: data.orderNo || null,
+      raw402Response: err.response,
+      requestConfig: err.config,
     };
   }
 }

@@ -1,6 +1,7 @@
 import { createX402Api, decodePaymentResponse, fetchPaymentRequirements } from "../x402.mjs";
 import { resolve, loadConfig, saveConfig } from "../config.mjs";
 import { getWalletBalance } from "../balance.mjs";
+import axios from "axios";
 import {
   MIN_AMOUNT, MAX_AMOUNT, POLL_INTERVAL, MAX_POLLS,
   BSC_RPC_URL, USDT_BSC, DEFAULT_WC_PROJECT_ID,
@@ -51,10 +52,11 @@ export async function create(opts) {
   const url = `${serviceUrl}/open/ai/x402/card/create?amount=${amount}`;
   console.error("Fetching payment requirements...");
   let requiredUsdt;
+  let paymentReq;
   try {
-    const req = await fetchPaymentRequirements(url);
-    requiredUsdt = req.amountUsdt;
-    console.error(`Required: ${requiredUsdt} USDT (pay to ${req.payToAddress})`);
+    paymentReq = await fetchPaymentRequirements(url);
+    requiredUsdt = paymentReq.amountUsdt;
+    console.error(`Required: ${requiredUsdt} USDT (pay to ${paymentReq.payToAddress})`);
   } catch (e) {
     console.error(JSON.stringify({ error: `Failed to fetch payment requirements: ${e.message}` }));
     process.exit(1);
@@ -126,15 +128,33 @@ export async function create(opts) {
     }
   }
 
-  // 5. 执行 x402 建卡（使用 session key 私钥签名）
-  const { api, address, getOrderNo } = createX402Api(privateKey);
+  // 5. 用第一次 402 响应手动签名并提交（避免二次请求产生不同金额）
+  const { client, address, api } = createX402Api(privateKey);
 
   console.error(`Creating card: $${amount} USD via ${url}`);
 
   try {
-    const response = await api.get(url);
+    const { x402HTTPClient } = await import("@aeon-ai-pay/core/client");
+    const httpClient = new x402HTTPClient(client);
+
+    // 从第一次的 402 响应中构造 paymentRequired
+    const raw402 = paymentReq.raw402Response;
+    const getHeader = (name) => {
+      const value = raw402.headers[name] ?? raw402.headers[name.toLowerCase()];
+      return typeof value === "string" ? value : undefined;
+    };
+    const paymentRequired = httpClient.getPaymentRequiredResponse(getHeader, raw402.data);
+
+    // 用第一次的精确金额签名
+    const paymentPayload = await client.createPaymentPayload(paymentRequired);
+    const paymentHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
+
+    // 带签名头重新请求同一 URL
+    const response = await axios.get(url, {
+      headers: { ...paymentHeaders, "Access-Control-Expose-Headers": "PAYMENT-RESPONSE,X-PAYMENT-RESPONSE" },
+    });
     const paymentResponse = decodePaymentResponse(response.headers);
-    const orderNo = getOrderNo() || response.data?.model?.orderNo || response.data?.orderNo;
+    const orderNo = paymentReq.orderNo || response.data?.model?.orderNo || response.data?.orderNo;
 
     const result = {
       success: true,
