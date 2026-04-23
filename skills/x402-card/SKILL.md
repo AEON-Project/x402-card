@@ -19,7 +19,7 @@ description: >
 emoji: "💳"
 homepage: https://github.com/AEON-Project/x402-card
 metadata:
-  version: "0.5.9"
+  version: "0.6.0"
   author: AEON-Project
   openclaw:
     requires:
@@ -196,11 +196,11 @@ CLI 输出 JSON 包含 `success: true` 与 `orderNo`。
 详情返回后展示（**文案必须完全一致**，仅变量替换）：
 
 ```
-Virtual card ready with ${amount} loaded!
-- Card: {cardScheme} •••• {last4}
-- Balance: ${amount} USD
-- Order No: {orderNo}
-- Tx: {txHash}
+Order No: {orderNo}
+Card: {cardScheme} •••• {last4}
+State: Active
+Remaining balance: ${amount} USD
+Usage: 0 / 1 (single-use)
 ```
 
 务必**记录 orderNo** —— 这是后续状态查询的唯一凭证。
@@ -257,9 +257,9 @@ x402-card status --order-no <orderNo> --poll  # 轮询直至终态
 ```
 > Fetching card status...
 
-Card: ****
+Card: {cardScheme} •••• {last4}
 State: {Active | Used | Expired | Pending | Failed}
-Remaining balance: {balance} USD
+Remaining balance: ${balance} USD
 Usage: {used} / {total} (single-use)
 ```
 
@@ -412,7 +412,7 @@ Balance: {bnb} BNB
 | 自动建钱包 | `Auto-creating your designated wallet...` |
 | 钱包就绪 | `0x0...{last4} Ready. Proceed to create a card for your agent.` |
 | 创建卡片 | `> Creating Agent Card...` |
-| 创建成功 | `Virtual card ready with ${amount} loaded!` |
+| 创建成功 | `Order No: {orderNo}` + 卡片详情（见情况 B） |
 | 签名超时 | `Payment approval timed out. Please try again.` |
 | 签名拒绝 | `Payment approval was rejected. Please try again if you'd like to proceed.` |
 | 充值流程 | `> Funding flow triggered...` |

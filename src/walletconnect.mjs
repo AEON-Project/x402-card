@@ -75,7 +75,7 @@ const QR_EXPIRE_MS = 2 * 60 * 1000;
  * @param {number} statusPort - 状态服务端口
  * @param {string|null} amount - 用户需要支付的 USDT 数量（如 "0.66"）
  */
-function openQRInBrowser(uri, statusPort, amount) {
+function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) only") {
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>AEON — Wallet Connect</title>
 <style>
@@ -98,7 +98,13 @@ function openQRInBrowser(uri, statusPort, amount) {
     flex: 1;
   }
   .title { font-size: 18px; font-weight: 700; color: #191b1f; margin-bottom: 16px; line-height: 1.4; }
-  .amount { font-size: 24px; font-weight: 700; color: #1972f6; margin-bottom: 16px; line-height: 1.2; letter-spacing: 0.2px; }
+  .info-card { width: 100%; border-radius: 8px; background: #f4f5f5; margin-bottom: 16px; overflow: hidden; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; }
+  .info-row + .info-row { border-top: 1px solid #e5e7eb; }
+  .info-label { font-size: 14px; font-weight: 400; color: #737a86; }
+  .info-value { font-size: 14px; font-weight: 600; color: #191b1f; display: flex; align-items: center; gap: 6px; }
+  .info-value.green { color: #00b42a; }
+  .usdt-icon { width: 18px; height: 18px; flex-shrink: 0; }
   .timer { display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 14px; font-weight: 400; color: #737a86; margin-top: 8px; margin-bottom: 16px; }
   .timer svg { flex-shrink: 0; }
   .qr-wrap { position: relative; padding: 12px; display: inline-block; }
@@ -153,6 +159,7 @@ function openQRInBrowser(uri, statusPort, amount) {
 <script>
   const URI = ${JSON.stringify(uri)};
   const AMOUNT = ${JSON.stringify(amount || null)};
+  const NETWORK = ${JSON.stringify(network)};
   const STATUS_URL = "http://127.0.0.1:${statusPort}/status";
   const EXPIRE_MS = ${QR_EXPIRE_MS};
   const startTime = Date.now();
@@ -255,10 +262,16 @@ function openQRInBrowser(uri, statusPort, amount) {
     const progress = remaining / EXPIRE_MS;
     const dashOffset = -PL * (1 - progress);
 
-    const amountHTML = AMOUNT ? '<div class="amount">' + fmtAmount(AMOUNT) + '</div>' : '';
+    // USDT 图标 SVG（绿色圆形 Tether 标志）
+    const USDT_ICON = '<svg class="usdt-icon" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="9" fill="#26A17B"/><path d="M10.1 9.6c-.06 0-.33.02-.73.02-.32 0-.58-.01-.67-.02-1.32-.06-2.3-.3-2.3-.58 0-.29.98-.52 2.3-.58v.93c.09.01.36.02.68.02.38 0 .66-.01.72-.02v-.93c1.31.06 2.29.3 2.29.58 0 .28-.98.52-2.29.58zm0-.87v-.83h2.05V6.5H5.88v1.4h2.05v.83c-1.48.07-2.6.38-2.6.75 0 .37 1.12.68 2.6.75v2.69h1.07v-2.69c1.48-.07 2.59-.38 2.59-.75 0-.37-1.11-.68-2.59-.75z" fill="#fff"/></svg>';
+
+    const infoCardHTML = AMOUNT ? '<div class="info-card">' +
+      '<div class="info-row"><span class="info-label">Amount</span><span class="info-value green">' + USDT_ICON + fmtAmount(AMOUNT) + '</span></div>' +
+      '<div class="info-row"><span class="info-label">Network</span><span class="info-value">' + NETWORK + '</span></div>' +
+      '</div>' : '';
 
     return '<div class="title">Scan the QR code with your wallet<br>to authorize transfer</div>' +
-      amountHTML +
+      infoCardHTML +
       '<div class="qr-wrap" style="width:' + S + 'px;height:' + S + 'px;">' +
         '<svg class="qr-border-bg" viewBox="0 0 ' + S + ' ' + S + '"><path d="' + qrPath + '"/></svg>' +
         '<svg class="qr-border" viewBox="0 0 ' + S + ' ' + S + '"><path id="qr-progress" d="' + qrPath + '" pathLength="' + PL + '" stroke-dasharray="' + PL + '" stroke-dashoffset="' + dashOffset.toFixed(1) + '"/></svg>' +
@@ -399,15 +412,21 @@ function openQRInBrowser(uri, statusPort, amount) {
  * @param {string} projectId - WalletConnect Cloud project ID
  */
 export async function initSignClient(projectId) {
-  return await SignClient.init({
-    projectId,
-    metadata: {
-      name: "x402-card",
-      description: "Virtual debit card via x402 protocol",
-      url: "https://github.com/AEON-Project/x402-card",
-      icons: [],
-    },
-  });
+  const INIT_TIMEOUT_MS = 15_000;
+  return await Promise.race([
+    SignClient.init({
+      projectId,
+      metadata: {
+        name: "x402-card",
+        description: "Virtual debit card via x402 protocol",
+        url: "https://github.com/AEON-Project/x402-card",
+        icons: [],
+      },
+    }),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("WalletConnect init timed out (15s). Check your network connection.")), INIT_TIMEOUT_MS)
+    ),
+  ]);
 }
 
 /**
@@ -467,20 +486,26 @@ export async function requestERC20Transfer(signClient, session, { from, to, toke
     args: [to, value],
   });
 
-  const txHash = await signClient.request({
-    topic: session.topic,
-    chainId: BSC_CHAIN_ID,
-    request: {
-      method: "eth_sendTransaction",
-      params: [
-        {
-          from,
-          to: token,
-          data,
-        },
-      ],
-    },
-  });
+  const TX_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+  const txHash = await Promise.race([
+    signClient.request({
+      topic: session.topic,
+      chainId: BSC_CHAIN_ID,
+      request: {
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from,
+            to: token,
+            data,
+          },
+        ],
+      },
+    }),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Payment approval timed out. Please try again.")), TX_REQUEST_TIMEOUT_MS)
+    ),
+  ]);
 
   return txHash;
 }
@@ -495,20 +520,26 @@ export async function requestERC20Transfer(signClient, session, { from, to, toke
 export async function requestNativeTransfer(signClient, session, { from, to, value }) {
   const weiValue = "0x" + parseUnits(value, 18).toString(16);
 
-  const txHash = await signClient.request({
-    topic: session.topic,
-    chainId: BSC_CHAIN_ID,
-    request: {
-      method: "eth_sendTransaction",
-      params: [
-        {
-          from,
-          to,
-          value: weiValue,
-        },
-      ],
-    },
-  });
+  const TX_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+  const txHash = await Promise.race([
+    signClient.request({
+      topic: session.topic,
+      chainId: BSC_CHAIN_ID,
+      request: {
+        method: "eth_sendTransaction",
+        params: [
+          {
+            from,
+            to,
+            value: weiValue,
+          },
+        ],
+      },
+    }),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Payment approval timed out. Please try again.")), TX_REQUEST_TIMEOUT_MS)
+    ),
+  ]);
 
   return txHash;
 }

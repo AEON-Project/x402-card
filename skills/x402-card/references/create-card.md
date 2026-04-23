@@ -85,11 +85,11 @@ CLI 自动处理完整流程：
 
 详情返回后，成功时（**文案必须完全一致**，仅变量替换）：
 ```
-Virtual card ready with ${amount} loaded!
-- Card: {cardScheme} •••• {last4}
-- Balance: ${amount} USD
-- Order No: {orderNo}
-- Tx: {txHash}
+Order No: {orderNo}
+Card: {cardScheme} •••• {last4}
+State: Active
+Remaining balance: ${amount} USD
+Usage: 0 / 1 (single-use)
 ```
 
 保存 `orderNo` 用于后续状态查询。
