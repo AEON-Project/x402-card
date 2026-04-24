@@ -1,25 +1,19 @@
 import { createX402Api, decodePaymentResponse, fetchPaymentRequirements } from "../x402.mjs";
-import { resolve, loadConfig, saveConfig } from "../config.mjs";
+import { resolve } from "../config.mjs";
 import { getWalletBalance, getAllowance } from "../balance.mjs";
 import axios from "axios";
 import {
   MIN_AMOUNT, MAX_AMOUNT, POLL_INTERVAL, MAX_POLLS,
-  BSC_RPC_URL, USDT_BSC, DEFAULT_WC_PROJECT_ID,
+  BSC_RPC_URL, USDT_BSC,
 } from "../constants.mjs";
 import {
-  initSignClient,
-  getOrConnectWallet,
+  withWallet,
   requestERC20Transfer,
   requestNativeTransfer,
-  disconnectSession,
-  normalizeWalletError,
-  startStatusServer,
-  stopStatusServer,
   setStatus,
 } from "../walletconnect.mjs";
 
 const AUTO_GAS_BNB = "0.001";
-const FINAL_LINGER_MS = 2000;
 
 export async function create(opts) {
   console.error("Creating Agent Card...");
@@ -208,21 +202,7 @@ export async function create(opts) {
  * 内联 WalletConnect 充值：在 create 流程内自动完成 USDT + BNB 充值
  */
 async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
-  const projectId = DEFAULT_WC_PROJECT_ID;
-  const statusPort = await startStatusServer();
-  let signClient = null;
-  let session = null;
-  let exitCode = 0;
-  let errorPayload = null;
-
-  try {
-    console.error("Initializing WalletConnect...");
-    signClient = await initSignClient(projectId);
-
-    let peerAddress, reused;
-    ({ session, peerAddress, reused } = await getOrConnectWallet(signClient, statusPort, amount));
-    console.error(`Wallet connected: ${peerAddress}`);
-
+  await withWallet({ amount }, async ({ signClient, session, peerAddress }) => {
     const { createPublicClient, http } = await import("viem");
     const { bsc } = await import("viem/chains");
     const publicClient = createPublicClient({
@@ -284,39 +264,7 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
     }
 
     setStatus("confirmed", { token: amount ? "USDT" : "BNB" });
-
-    // 写回 mainWallet
-    const config = loadConfig();
-    config.mainWallet = peerAddress;
-    saveConfig(config);
-  } catch (error) {
-    normalizeWalletError(error);
-    const isRejected = error.message?.includes("rejected") || error.code === 5000;
-    const isTimeout = error.message?.includes("timed out");
-
-    if (isTimeout) {
-      setStatus("expired");
-      errorPayload = { error: "Payment approval timed out. Please try again." };
-    } else if (isRejected) {
-      setStatus("rejected", { error: "Payment approval was rejected." });
-      errorPayload = { error: "Payment approval was rejected. Please try again if you'd like to proceed." };
-    } else {
-      setStatus("failed", { error: error.message });
-      errorPayload = { error: `Funding failed: ${error.message}` };
-    }
-    exitCode = 1;
-  } finally {
-    await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
-    stopStatusServer();
-    if (exitCode !== 0 && session && signClient) {
-      await disconnectSession(signClient, session);
-    }
-  }
-
-  if (exitCode !== 0) {
-    console.error(JSON.stringify(errorPayload));
-    process.exit(exitCode);
-  }
+  });
 }
 
 async function pollStatus(serviceUrl, orderNo) {

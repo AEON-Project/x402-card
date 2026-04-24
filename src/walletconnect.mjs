@@ -9,7 +9,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { execSync } from "child_process";
 import { createServer } from "http";
-import { WC_CONNECT_TIMEOUT_MS, ERC20_TRANSFER_ABI } from "./constants.mjs";
+import { WC_CONNECT_TIMEOUT_MS, ERC20_TRANSFER_ABI, DEFAULT_WC_PROJECT_ID } from "./constants.mjs";
 import { loadConfig, saveConfig } from "./config.mjs";
 
 // ============== 状态同步服务器（供浏览器页面轮询） ==============
@@ -396,7 +396,6 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
 
 /**
  * 初始化 WalletConnect SignClient
- * 不再清理所有 session —— 保留与 config 中记录的 topic 匹配的 session 以便复用
  * @param {string} projectId - WalletConnect Cloud project ID
  */
 export async function initSignClient(projectId) {
@@ -416,71 +415,15 @@ export async function initSignClient(projectId) {
     ),
   ]);
 
-  // 只清理与 config 中保存的 topic 不匹配的残留 session
+  // 清理所有残留 session
   try {
-    const config = loadConfig();
-    const savedTopic = config.wcSession?.topic;
     const sessions = client.session.getAll();
     for (const s of sessions) {
-      if (s.topic !== savedTopic) {
-        await client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup stale session" } }).catch(() => {});
-      }
+      await client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup stale session" } }).catch(() => {});
     }
   } catch {}
 
   return client;
-}
-
-/**
- * 尝试复用已有 WalletConnect session，失败则重新连接
- * @param {SignClient} signClient
- * @param {number} statusPort - 状态服务端口
- * @param {string|null} amount - 展示用的 USDT 金额
- * @returns {{ session: object, peerAddress: string, reused: boolean }}
- */
-export async function getOrConnectWallet(signClient, statusPort, amount = null) {
-  // 尝试从 config 中加载已保存的 session
-  const config = loadConfig();
-  const saved = config.wcSession;
-
-  if (saved?.topic && saved?.peerAddress) {
-    try {
-      const existing = signClient.session.get(saved.topic);
-      if (existing && existing.expiry * 1000 > Date.now()) {
-        // session 仍然有效，尝试 ping 验证连通性
-        try {
-          await Promise.race([
-            signClient.ping({ topic: saved.topic }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("ping timeout")), 5_000)),
-          ]);
-          console.error(`Reusing existing WalletConnect session with ${saved.peerAddress}`);
-          return { session: existing, peerAddress: saved.peerAddress, reused: true };
-        } catch {
-          // ping 失败，session 已失效，清理后重新连接
-          console.error("Saved session expired or unreachable, reconnecting...");
-          await signClient.disconnect({ topic: saved.topic, reason: { code: 6000, message: "Session stale" } }).catch(() => {});
-        }
-      }
-    } catch {
-      // session.get 抛出说明 topic 不存在
-    }
-    // 旧 session 无效，清除持久化记录
-    try {
-      const cfg = loadConfig();
-      delete cfg.wcSession;
-      saveConfig(cfg);
-    } catch {}
-  }
-
-  // 新建连接
-  const { session, peerAddress } = await connectWallet(signClient, statusPort, amount);
-
-  // 持久化新 session 信息
-  const freshConfig = loadConfig();
-  freshConfig.wcSession = { topic: session.topic, peerAddress };
-  saveConfig(freshConfig);
-
-  return { session, peerAddress, reused: false };
 }
 
 /**
@@ -598,6 +541,68 @@ export async function requestNativeTransfer(signClient, session, { from, to, val
   return txHash;
 }
 
+const FINAL_LINGER_MS = 2000;
+
+/**
+ * 通用钱包连接高阶函数：自动管理连接生命周期
+ * - 启动状态服务器
+ * - 扫码连接钱包
+ * - 执行调用方的事务逻辑
+ * - 无论成功失败，始终断开连接并清理
+ *
+ * @param {{ amount?: string, projectId?: string }} opts
+ * @param {(ctx: { signClient, session, peerAddress }) => Promise<void>} fn
+ */
+export async function withWallet(opts, fn) {
+  const { amount = null, projectId = DEFAULT_WC_PROJECT_ID } = opts;
+  const statusPort = await startStatusServer();
+  let signClient = null;
+  let session = null;
+  let exitCode = 0;
+  let errorPayload = null;
+
+  try {
+    signClient = await initSignClient(projectId);
+    let peerAddress;
+    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount));
+    console.error(`Wallet connected: ${peerAddress}`);
+
+    await fn({ signClient, session, peerAddress });
+
+    // 成功：写回 mainWallet
+    const config = loadConfig();
+    config.mainWallet = peerAddress;
+    saveConfig(config);
+  } catch (error) {
+    normalizeWalletError(error);
+    const isRejected = error.message?.includes("rejected") || error.code === 5000;
+    const isTimeout = error.message?.includes("timed out");
+
+    if (isTimeout) {
+      setStatus("expired");
+      errorPayload = { error: "Payment approval timed out. Please try again." };
+    } else if (isRejected) {
+      setStatus("rejected", { error: "Payment approval was rejected." });
+      errorPayload = { error: "Payment approval was rejected. Please try again if you'd like to proceed." };
+    } else {
+      setStatus("failed", { error: error.message });
+      errorPayload = { error: `Wallet operation failed: ${error.message}` };
+    }
+    exitCode = 1;
+  } finally {
+    await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
+    stopStatusServer();
+    if (session && signClient) {
+      await disconnectSession(signClient, session);
+    }
+  }
+
+  if (exitCode !== 0) {
+    console.error(JSON.stringify(errorPayload));
+    process.exit(exitCode);
+  }
+}
+
 /**
  * 标准化钱包错误消息：将已知的中文/多语言错误映射为统一英文
  * @param {Error} error
@@ -623,7 +628,7 @@ export function normalizeWalletError(error) {
 }
 
 /**
- * 断开 WalletConnect 会话并清除持久化记录
+ * 断开 WalletConnect 会话
  * @param {SignClient} signClient
  * @param {object} session
  */
@@ -636,12 +641,4 @@ export async function disconnectSession(signClient, session) {
   } catch {
     // 静默处理断开错误
   }
-  // 清除持久化的 session 信息
-  try {
-    const config = loadConfig();
-    if (config.wcSession?.topic === session.topic) {
-      delete config.wcSession;
-      saveConfig(config);
-    }
-  } catch {}
 }

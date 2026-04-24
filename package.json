@@ -1,6 +1,6 @@
 {
   "name": "@aeon-ai-pay/x402-card",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "CLI & Agent skill for purchasing virtual debit cards via x402 protocol",
   "type": "module",
   "bin": {
