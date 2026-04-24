@@ -7,7 +7,7 @@ import { loadConfig, saveConfig } from "../config.mjs";
 import { getBalanceByAddress } from "../balance.mjs";
 import {
   initSignClient,
-  connectWallet,
+  getOrConnectWallet,
   requestNativeTransfer,
   disconnectSession,
   normalizeWalletError,
@@ -60,8 +60,8 @@ export async function gas(opts) {
     console.error("Initializing WalletConnect...");
     signClient = await initSignClient(projectId);
 
-    let peerAddress;
-    ({ session, peerAddress } = await connectWallet(signClient, statusPort));
+    let peerAddress, reused;
+    ({ session, peerAddress, reused } = await getOrConnectWallet(signClient, statusPort));
     console.error(`Wallet connected: ${peerAddress}`);
 
     const publicClient = createPublicClient({
@@ -113,7 +113,7 @@ export async function gas(opts) {
   } finally {
     await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
     stopStatusServer();
-    if (session && signClient) {
+    if (exitCode !== 0 && session && signClient) {
       await disconnectSession(signClient, session);
     }
   }

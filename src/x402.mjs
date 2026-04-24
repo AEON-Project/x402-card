@@ -5,7 +5,7 @@ import { x402Client, wrapAxiosWithPayment, x402HTTPClient } from "@aeon-ai-pay/a
 import { registerExactEvmScheme } from "@aeon-ai-pay/evm/exact/client";
 import { toClientEvmSigner } from "@aeon-ai-pay/evm";
 import { privateKeyToAccount } from "viem/accounts";
-import { createWalletClient, http, publicActions } from "viem";
+import { createWalletClient, http, publicActions, formatUnits } from "viem";
 import { bsc } from "viem/chains";
 import { BSC_RPC_URL } from "./constants.mjs";
 import axios from "axios";
@@ -80,7 +80,7 @@ export async function fetchPaymentRequirements(url) {
     if (!accept) throw new Error("No payment requirements in 402 response");
     const decimals = accept.tokenDecimals || 18;
     const amountWei = BigInt(accept.maxAmountRequired || accept.amountRequired);
-    const amountUsdt = Number(amountWei) / Math.pow(10, decimals);
+    const amountUsdt = parseFloat(formatUnits(amountWei, decimals));
     return {
       amountUsdt,
       amountWei: amountWei.toString(),

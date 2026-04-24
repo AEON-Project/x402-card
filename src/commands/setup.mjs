@@ -24,8 +24,12 @@ export async function setup(opts) {
       config.privateKey = newKey;
       config.address = account.address;
       config.mode = "private-key";
-      saveConfig(config);
       created = true;
+    }
+
+    // 无论是否新建了私钥，只要有变更就保存（如 --service-url 同时传入）
+    if (created || changed) {
+      saveConfig(config);
     }
 
     const ready = !!(config.serviceUrl && config.privateKey);

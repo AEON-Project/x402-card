@@ -34,11 +34,13 @@ function refreshCacheInBackground() {
   const script = `
     const { execFileSync } = require("child_process");
     const { writeFileSync, mkdirSync } = require("fs");
+    const cacheDir = ${JSON.stringify(CACHE_DIR)};
+    const cacheFile = ${JSON.stringify(CACHE_FILE)};
     try {
-      const latest = execFileSync("npm", ["view", "${PKG_NAME}", "version"], { timeout: 10000 }).toString().trim();
+      const latest = execFileSync("npm", ["view", ${JSON.stringify(PKG_NAME)}, "version"], { timeout: 10000 }).toString().trim();
       if (latest) {
-        mkdirSync("${CACHE_DIR.replace(/\\/g, "\\\\")}", { recursive: true });
-        writeFileSync("${CACHE_FILE.replace(/\\/g, "\\\\")}", JSON.stringify({ latest: latest, ts: Date.now() }));
+        mkdirSync(cacheDir, { recursive: true });
+        writeFileSync(cacheFile, JSON.stringify({ latest: latest, ts: Date.now() }));
       }
     } catch {}
   `;
@@ -61,20 +63,23 @@ function upgradeInBackground(latest) {
 
   // npm install -g 后需手动执行 postinstall 复制 skills 到 ~/.claude/skills/
   // 因为 detached 子进程中 npm lifecycle hooks 可能不触发
-  const npmRoot = "`npm root -g`";
   const script = `
-    const { execFileSync, execSync } = require("child_process");
+    const { execFileSync } = require("child_process");
     const { writeFileSync, mkdirSync } = require("fs");
+    const { join } = require("path");
+    const pkgName = ${JSON.stringify(PKG_NAME)};
+    const ver = ${JSON.stringify(latest)};
+    const cacheDir = ${JSON.stringify(CACHE_DIR)};
+    const cacheFile = ${JSON.stringify(CACHE_FILE)};
     try {
-      execFileSync("npm", ["install", "-g", "${PKG_NAME}@" + "${latest}"], { timeout: 120000 });
-      // 手动执行 postinstall 确保 skills 文件被复制
+      execFileSync("npm", ["install", "-g", pkgName + "@" + ver], { timeout: 120000 });
       const root = execFileSync("npm", ["root", "-g"], { timeout: 10000 }).toString().trim();
-      const postinstall = root + "/${PKG_NAME}/scripts/postinstall.mjs";
+      const postinstall = join(root, pkgName, "scripts", "postinstall.mjs");
       execFileSync("node", [postinstall], { timeout: 10000 });
-      mkdirSync("${CACHE_DIR.replace(/\\/g, "\\\\")}", { recursive: true });
-      writeFileSync("${CACHE_FILE.replace(/\\/g, "\\\\")}", JSON.stringify({ latest: "${latest}", upgraded: true, ts: Date.now() }));
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(cacheFile, JSON.stringify({ latest: ver, upgraded: true, ts: Date.now() }));
     } catch {
-      writeFileSync("${CACHE_FILE.replace(/\\/g, "\\\\")}", JSON.stringify({ latest: "${latest}", ts: Date.now() }));
+      writeFileSync(cacheFile, JSON.stringify({ latest: ver, ts: Date.now() }));
     }
   `;
   const child = spawn("node", ["-e", script], {

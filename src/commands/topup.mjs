@@ -7,7 +7,7 @@ import { loadConfig, saveConfig } from "../config.mjs";
 import { getBalanceByAddress } from "../balance.mjs";
 import {
   initSignClient,
-  connectWallet,
+  getOrConnectWallet,
   requestERC20Transfer,
   requestNativeTransfer,
   disconnectSession,
@@ -68,9 +68,9 @@ export async function topup(opts) {
     console.error("Initializing WalletConnect...");
     signClient = await initSignClient(projectId);
 
-    // 连接钱包（内部会推 connected 状态）
-    let peerAddress;
-    ({ session, peerAddress } = await connectWallet(signClient, statusPort));
+    // 尝试复用已有 session，失败则重新连接
+    let peerAddress, reused;
+    ({ session, peerAddress, reused } = await getOrConnectWallet(signClient, statusPort));
     console.error(`Wallet connected: ${peerAddress}`);
 
     const publicClient = createPublicClient({
@@ -153,10 +153,12 @@ export async function topup(opts) {
     }
     exitCode = 1;
   } finally {
-    // 给浏览器页面留 2s 拿到最终状态，然后强制关闭服务器和 WC 会话
+    // 给浏览器页面留 2s 拿到最终状态
     await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
     stopStatusServer();
-    if (session && signClient) {
+    // 不再断开 session，保留供后续命令复用
+    // 仅在出错时断开（避免脏 session 残留）
+    if (exitCode !== 0 && session && signClient) {
       await disconnectSession(signClient, session);
     }
   }

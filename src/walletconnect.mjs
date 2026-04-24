@@ -10,7 +10,8 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { execSync } from "child_process";
 import { createServer } from "http";
-import { WC_CONNECT_TIMEOUT_MS } from "./constants.mjs";
+import { WC_CONNECT_TIMEOUT_MS, ERC20_TRANSFER_ABI } from "./constants.mjs";
+import { loadConfig, saveConfig } from "./config.mjs";
 
 // ============== 状态同步服务器（供浏览器页面轮询） ==============
 
@@ -52,19 +53,6 @@ export function stopStatusServer() {
 }
 
 const BSC_CHAIN_ID = "eip155:56";
-
-const ERC20_TRANSFER_ABI = [
-  {
-    name: "transfer",
-    type: "function",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "amount", type: "uint256" },
-    ],
-    outputs: [{ name: "success", type: "bool" }],
-    stateMutability: "nonpayable",
-  },
-];
 
 // 5 分钟超时（毫秒）
 const QR_EXPIRE_MS = 2 * 60 * 1000;
@@ -409,6 +397,7 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
 
 /**
  * 初始化 WalletConnect SignClient
+ * 不再清理所有 session —— 保留与 config 中记录的 topic 匹配的 session 以便复用
  * @param {string} projectId - WalletConnect Cloud project ID
  */
 export async function initSignClient(projectId) {
@@ -428,15 +417,65 @@ export async function initSignClient(projectId) {
     ),
   ]);
 
-  // 清理残留的旧 session，避免钱包端报"请先断开 DApp"
+  // 只清理与 config 中保存的 topic 不匹配的残留 session
   try {
+    const config = loadConfig();
+    const savedTopic = config.wcSession?.topic;
     const sessions = client.session.getAll();
     for (const s of sessions) {
-      await client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup stale session" } }).catch(() => {});
+      if (s.topic !== savedTopic) {
+        await client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup stale session" } }).catch(() => {});
+      }
     }
   } catch {}
 
   return client;
+}
+
+/**
+ * 尝试复用已有 WalletConnect session，失败则重新连接
+ * @param {SignClient} signClient
+ * @param {number} statusPort - 状态服务端口
+ * @param {string|null} amount - 展示用的 USDT 金额
+ * @returns {{ session: object, peerAddress: string, reused: boolean }}
+ */
+export async function getOrConnectWallet(signClient, statusPort, amount = null) {
+  // 尝试从 config 中加载已保存的 session
+  const config = loadConfig();
+  const saved = config.wcSession;
+
+  if (saved?.topic && saved?.peerAddress) {
+    try {
+      const existing = signClient.session.get(saved.topic);
+      if (existing && existing.expiry * 1000 > Date.now()) {
+        // session 仍然有效，尝试 ping 验证连通性
+        try {
+          await Promise.race([
+            signClient.ping({ topic: saved.topic }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("ping timeout")), 5_000)),
+          ]);
+          console.error(`Reusing existing WalletConnect session with ${saved.peerAddress}`);
+          return { session: existing, peerAddress: saved.peerAddress, reused: true };
+        } catch {
+          // ping 失败，session 已失效，清理后重新连接
+          console.error("Saved session expired or unreachable, reconnecting...");
+          await signClient.disconnect({ topic: saved.topic, reason: { code: 6000, message: "Session stale" } }).catch(() => {});
+        }
+      }
+    } catch {
+      // session.get 抛出说明 topic 不存在，继续走新建流程
+    }
+  }
+
+  // 新建连接
+  const { session, peerAddress } = await connectWallet(signClient, statusPort, amount);
+
+  // 持久化新 session 信息
+  const freshConfig = loadConfig();
+  freshConfig.wcSession = { topic: session.topic, peerAddress };
+  saveConfig(freshConfig);
+
+  return { session, peerAddress, reused: false };
 }
 
 /**
@@ -579,7 +618,7 @@ export function normalizeWalletError(error) {
 }
 
 /**
- * 断开 WalletConnect 会话
+ * 断开 WalletConnect 会话并清除持久化记录
  * @param {SignClient} signClient
  * @param {object} session
  */
@@ -592,4 +631,12 @@ export async function disconnectSession(signClient, session) {
   } catch {
     // 静默处理断开错误
   }
+  // 清除持久化的 session 信息
+  try {
+    const config = loadConfig();
+    if (config.wcSession?.topic === session.topic) {
+      delete config.wcSession;
+      saveConfig(config);
+    }
+  } catch {}
 }

@@ -6,20 +6,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { bsc } from "viem/chains";
 import { loadConfig } from "../config.mjs";
 import { getBalanceByAddress } from "../balance.mjs";
-import { BSC_RPC_URL, USDT_BSC } from "../constants.mjs";
-
-const ERC20_TRANSFER_ABI = [
-  {
-    name: "transfer",
-    type: "function",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "amount", type: "uint256" },
-    ],
-    outputs: [{ name: "success", type: "bool" }],
-    stateMutability: "nonpayable",
-  },
-];
+import { BSC_RPC_URL, USDT_BSC, ERC20_TRANSFER_ABI } from "../constants.mjs";
 
 export async function withdraw(opts) {
   console.error("Reclaiming funds...");

@@ -11,8 +11,7 @@ export async function status(opts) {
     process.exit(1);
   }
 
-  const url = `${serviceUrl}/open/ai/x402/card/status?orderNo=${orderNo}`;
-
+  const url = `${serviceUrl}/open/ai/x402/card/status?orderNo=${encodeURIComponent(orderNo)}`;
 
   if (!poll) {
     try {

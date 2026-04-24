@@ -2,8 +2,12 @@
 
 import { Command } from "commander";
 import { checkForUpdates } from "../src/update-check.mjs";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
-const CURRENT_VERSION = "0.6.6";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CURRENT_VERSION = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")).version;
 checkForUpdates(CURRENT_VERSION);
 
 const program = new Command();

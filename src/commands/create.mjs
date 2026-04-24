@@ -8,7 +8,7 @@ import {
 } from "../constants.mjs";
 import {
   initSignClient,
-  connectWallet,
+  getOrConnectWallet,
   requestERC20Transfer,
   requestNativeTransfer,
   disconnectSession,
@@ -49,7 +49,7 @@ export async function create(opts) {
   }
 
   // 3. 第一次请求 x402，获取实际付款要求（带唯一后缀的真实 USDT 金额）
-  const url = `${serviceUrl}/open/ai/x402/card/create?amount=${amount}`;
+  const url = `${serviceUrl}/open/ai/x402/card/create?amount=${encodeURIComponent(amount)}`;
   console.error("Fetching payment requirements...");
   let requiredUsdt;
   let paymentReq;
@@ -213,8 +213,8 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
     console.error("Initializing WalletConnect...");
     signClient = await initSignClient(projectId);
 
-    let peerAddress;
-    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount));
+    let peerAddress, reused;
+    ({ session, peerAddress, reused } = await getOrConnectWallet(signClient, statusPort, amount));
     console.error(`Wallet connected: ${peerAddress}`);
 
     const { createPublicClient, http } = await import("viem");
@@ -302,7 +302,7 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
   } finally {
     await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
     stopStatusServer();
-    if (session && signClient) {
+    if (exitCode !== 0 && session && signClient) {
       await disconnectSession(signClient, session);
     }
   }
@@ -314,7 +314,6 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
 }
 
 async function pollStatus(serviceUrl, orderNo) {
-  const { default: axios } = await import("axios");
   for (let i = 1; i <= MAX_POLLS; i++) {
     // 第一次立即查，前5次每2秒快速轮询，之后每5秒
     if (i > 1) {
@@ -323,7 +322,7 @@ async function pollStatus(serviceUrl, orderNo) {
     }
     try {
       const res = await axios.get(
-        `${serviceUrl}/open/ai/x402/card/status?orderNo=${orderNo}`
+        `${serviceUrl}/open/ai/x402/card/status?orderNo=${encodeURIComponent(orderNo)}`
       );
       const model = res.data?.model;
       console.error(`[${i}/${MAX_POLLS}] orderStatus=${model?.orderStatus} channelStatus=${model?.channelStatus}`);
