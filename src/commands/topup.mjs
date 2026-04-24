@@ -4,7 +4,7 @@
 import { createPublicClient, http } from "viem";
 import { bsc } from "viem/chains";
 import { loadConfig } from "../config.mjs";
-import { getBalanceByAddress } from "../balance.mjs";
+import { getBalanceByAddress, getAllowance } from "../balance.mjs";
 import {
   withWallet,
   requestERC20Transfer,
@@ -67,9 +67,19 @@ export async function topup(opts) {
     }
     console.error("USDT transfer confirmed.");
 
-    // 自动附带少量 BNB（用于 BSC USDT approve 授权的 gas）
+    // 检查是否已有无限额度 approve，已授权则跳过 BNB
     const skipGas = opts.skipGas || false;
-    if (!skipGas) {
+    let needGas = !skipGas;
+    if (needGas) {
+      try {
+        const allowance = await getAllowance(sessionAddress);
+        if (allowance > 0n) {
+          needGas = false;
+          console.error("Allowance sufficient, skipping BNB transfer.");
+        }
+      } catch {}
+    }
+    if (needGas) {
       try {
         setStatus("signing", { amount: AUTO_GAS_BNB, token: "BNB", to: sessionAddress });
         console.error(`\nRequesting BNB transfer: ${AUTO_GAS_BNB} BNB → ${sessionAddress} (for approve gas)`);

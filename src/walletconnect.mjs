@@ -338,7 +338,9 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
   // 倒计时刷新（每秒更新 timer）
   timerInterval = setInterval(() => {
     const remaining = EXPIRE_MS - (Date.now() - startTime);
-    if (remaining <= 0 && !FINAL.includes(lastState)) {
+    // 后端已进入活跃状态（已连接/签名中/交易已提交），不触发页面过期
+    const ACTIVE = ['connected', 'signing', 'tx_submitted'];
+    if (remaining <= 0 && !FINAL.includes(lastState) && !ACTIVE.includes(lastState)) {
       lastState = 'expired';
       render({ state: 'expired' });
       maybeAutoClose('expired');
@@ -415,11 +417,15 @@ export async function initSignClient(projectId) {
     ),
   ]);
 
-  // 清理所有残留 session
+  // 清理残留 session（并行等待完成，确保 relay 状态干净后再建新连接）
   try {
     const sessions = client.session.getAll();
-    for (const s of sessions) {
-      await client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup stale session" } }).catch(() => {});
+    if (sessions.length > 0) {
+      await Promise.allSettled(
+        sessions.map(s =>
+          client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup" } }).catch(() => {})
+        )
+      );
     }
   } catch {}
 
@@ -455,7 +461,7 @@ export async function connectWallet(signClient, statusPort, amount = null) {
       setTimeout(
         () => {
           setStatus("expired");
-          reject(new Error("WalletConnect connection timed out (5min). Please try again."));
+          reject(new Error("WalletConnect connection timed out. Please try again."));
         },
         WC_CONNECT_TIMEOUT_MS,
       ),

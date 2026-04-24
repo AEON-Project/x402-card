@@ -73,7 +73,8 @@
       "WebFetch(domain:www.google.com)",
       "WebFetch(domain:registry.npmjs.org)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Read(//Users/yuanyong/work/aeon/x402-card/**)"
+      "Read(//Users/yuanyong/work/aeon/x402-card/**)",
+      "Bash(x402-card topup:*)"
     ]
   }
 }
