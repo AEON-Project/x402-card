@@ -4,7 +4,7 @@
 import { privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, http, formatUnits } from "viem";
 import { bsc } from "viem/chains";
-import { BSC_RPC_URL, USDT_BSC } from "./constants.mjs";
+import { BSC_RPC_URL, USDT_BSC, FACILITATOR_ADDRESS } from "./constants.mjs";
 
 const ERC20_BALANCE_ABI = [
   {
@@ -12,6 +12,19 @@ const ERC20_BALANCE_ABI = [
     type: "function",
     stateMutability: "view",
     inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+];
+
+const ERC20_ALLOWANCE_ABI = [
+  {
+    name: "allowance",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" },
+    ],
     outputs: [{ name: "", type: "uint256" }],
   },
 ];
@@ -61,4 +74,19 @@ export async function getBalanceByAddress(address) {
 export async function getWalletBalance(privateKey) {
   const account = privateKeyToAccount(privateKey);
   return getBalanceByAddress(account.address);
+}
+
+/**
+ * 查询 session key 对 facilitator 的 USDT allowance
+ * @param {string} ownerAddress - session key 地址
+ * @returns {bigint} 当前 allowance（wei）
+ */
+export async function getAllowance(ownerAddress) {
+  const client = getClient();
+  return client.readContract({
+    address: USDT_BSC,
+    abi: ERC20_ALLOWANCE_ABI,
+    functionName: "allowance",
+    args: [ownerAddress, FACILITATOR_ADDRESS],
+  });
 }

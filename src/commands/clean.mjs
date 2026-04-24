@@ -1,18 +1,25 @@
-import { rmSync, existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 
 export async function clean() {
-  const skillDir = join(homedir(), ".claude", "skills", "x402-card");
-  const npxCache = join(homedir(), ".npm", "_npx");
+  const home = homedir();
 
-  // 1. 删除 skill
-  if (existsSync(skillDir)) {
-    rmSync(skillDir, { recursive: true, force: true });
-    console.error("Removed skill:", skillDir);
-  } else {
-    console.error("Skill not found, skipping:", skillDir);
+  // 1. 用 skills CLI 移除（覆盖所有工具）
+  try {
+    execFileSync("npx", ["skills", "remove", "x402-card", "-g", "-y"], {
+      stdio: "inherit",
+      timeout: 30000,
+    });
+    console.error("Removed x402-card skill via skills CLI");
+  } catch {
+    // skills CLI 不可用，手动清理 Claude Code
+    const skillDir = join(home, ".claude", "skills", "x402-card");
+    if (existsSync(skillDir)) {
+      rmSync(skillDir, { recursive: true, force: true });
+      console.error("Removed skill:", skillDir);
+    }
   }
 
   // 2. 卸载全局包
@@ -38,6 +45,7 @@ export async function clean() {
   }
 
   // 4. 清理 npx 缓存
+  const npxCache = join(home, ".npm", "_npx");
   if (existsSync(npxCache)) {
     rmSync(npxCache, { recursive: true, force: true });
     console.error("Removed npx cache:", npxCache);

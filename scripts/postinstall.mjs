@@ -1,25 +1,40 @@
 #!/usr/bin/env node
 
-// 将 skills 目录复制到 ~/.claude/skills/，使 Claude Code 能识别该技能
+/**
+ * npm install -g 后自动安装 skill 到所有已检测的 AI 编码工具
+ *
+ * 优先使用 `npx skills add` (Vercel Labs) 统一安装到所有工具
+ * 失败时 fallback 到手动复制 Claude Code skills 目录
+ */
 
 import { cpSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const src = join(__dirname, '..', 'skills', 'x402-card');
-const dest = join(homedir(), '.claude', 'skills', 'x402-card');
+const skillSrc = join(__dirname, '..', 'skills', 'x402-card');
 
-if (!existsSync(src)) {
-  // 开发环境下 skills 目录可能不存在，跳过
+if (!existsSync(skillSrc)) {
   process.exit(0);
 }
 
-// 确保目标父目录存在
+// 尝试用 skills CLI 安装到所有工具
+try {
+  execFileSync('npx', ['skills', 'add', skillSrc, '-g', '-y', '--copy'], {
+    stdio: 'inherit',
+    timeout: 30000,
+    cwd: join(__dirname, '..'),
+  });
+  console.log('✔ x402-card skill installed via skills CLI (all detected tools)');
+  process.exit(0);
+} catch {
+  // skills CLI 不可用或失败，fallback
+}
+
+// Fallback: 手动复制到 Claude Code
+const dest = join(homedir(), '.claude', 'skills', 'x402-card');
 mkdirSync(dirname(dest), { recursive: true });
-
-// 递归复制，覆盖已有文件
-cpSync(src, dest, { recursive: true, force: true });
-
-console.log(`✔ x402-card skill installed to ${dest}`);
+cpSync(skillSrc, dest, { recursive: true, force: true });
+console.log(`✔ x402-card skill installed to ${dest} (fallback)`);

@@ -1,6 +1,6 @@
 import { createX402Api, decodePaymentResponse, fetchPaymentRequirements } from "../x402.mjs";
 import { resolve, loadConfig, saveConfig } from "../config.mjs";
-import { getWalletBalance } from "../balance.mjs";
+import { getWalletBalance, getAllowance } from "../balance.mjs";
 import axios from "axios";
 import {
   MIN_AMOUNT, MAX_AMOUNT, POLL_INTERVAL, MAX_POLLS,
@@ -8,7 +8,7 @@ import {
 } from "../constants.mjs";
 import {
   initSignClient,
-  getOrConnectWallet,
+  connectWallet,
   requestERC20Transfer,
   requestNativeTransfer,
   disconnectSession,
@@ -77,7 +77,14 @@ export async function create(opts) {
     console.error(`Balance: ${usdt} USDT, ${bnb} BNB`);
 
     if (bnbRaw === 0n) {
-      needGas = true;
+      // 检查是否已对 facilitator 做过无限额度 approve，若已授权则无需 BNB gas
+      const allowance = await getAllowance(address);
+      if (allowance < BigInt(paymentReq.amountWei)) {
+        needGas = true;
+        console.error("First-time approve needed, BNB gas required.");
+      } else {
+        console.error("Allowance sufficient, no BNB gas needed.");
+      }
     }
     if (usdtNum < requiredUsdt) {
       needTopup = true;
@@ -105,7 +112,7 @@ export async function create(opts) {
       const usdtNum = parseFloat(usdt);
       console.error(`Balance: ${usdt} USDT, ${bnb} BNB`);
 
-      if (bnbRaw === 0n) {
+      if (needGas && bnbRaw === 0n) {
         console.error(JSON.stringify({
           error: "No BNB for approve transaction after funding. Run 'x402-card gas' to add BNB manually.",
           address: sessionAddress,
@@ -212,8 +219,8 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
     console.error("Initializing WalletConnect...");
     signClient = await initSignClient(projectId);
 
-    let peerAddress, reused;
-    ({ session, peerAddress, reused } = await getOrConnectWallet(signClient, statusPort, amount));
+    let peerAddress;
+    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount));
     console.error(`Wallet connected: ${peerAddress}`);
 
     const { createPublicClient, http } = await import("viem");
@@ -301,7 +308,7 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
   } finally {
     await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
     stopStatusServer();
-    if (exitCode !== 0 && session && signClient) {
+    if (session && signClient) {
       await disconnectSession(signClient, session);
     }
   }
