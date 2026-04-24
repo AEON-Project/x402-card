@@ -53,8 +53,8 @@ export function stopStatusServer() {
 
 const BSC_CHAIN_ID = "eip155:56";
 
-// 5 分钟超时（毫秒）
-const QR_EXPIRE_MS = 2 * 60 * 1000;
+// QR 页面倒计时（与 WalletConnect 连接超时一致）
+const QR_EXPIRE_MS = 5 * 60 * 1000;
 
 /**
  * 生成 QR 码 HTML 页面并在浏览器中打开（按 Figma Ai card v1.2 设计稿）
@@ -295,11 +295,20 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
   let closeTimer = null;
   let timerInterval = null;
 
+  function renderConfirmed() {
+    return '<div class="result-card">' + CHECK_SVG +
+      '<div class="result-title">Transfer completed</div>' +
+      '<div class="result-sub">You can close this page now</div></div>';
+  }
+
   function render(data) {
     const body = document.getElementById('body');
     const state = data ? data.state : 'waiting_scan';
 
-    if (state === 'expired') {
+    if (state === 'confirmed') {
+      body.innerHTML = renderConfirmed();
+      stopTimer();
+    } else if (state === 'expired') {
       body.innerHTML = renderExpired();
       stopTimer();
     } else if (state === 'rejected') {

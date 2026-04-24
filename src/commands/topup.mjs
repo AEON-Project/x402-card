@@ -4,16 +4,13 @@
 import { createPublicClient, http } from "viem";
 import { bsc } from "viem/chains";
 import { loadConfig } from "../config.mjs";
-import { getBalanceByAddress, getAllowance } from "../balance.mjs";
+import { getBalanceByAddress } from "../balance.mjs";
 import {
   withWallet,
   requestERC20Transfer,
-  requestNativeTransfer,
   setStatus,
 } from "../walletconnect.mjs";
 import { BSC_RPC_URL, USDT_BSC } from "../constants.mjs";
-
-const AUTO_GAS_BNB = "0.001"; // 自动附带的 BNB 用于 approve 授权 gas
 
 export async function topup(opts) {
   const config = loadConfig();
@@ -35,7 +32,6 @@ export async function topup(opts) {
   } catch {}
 
   let usdtTxHash = null;
-  let bnbTxHash = null;
 
   await withWallet({ amount }, async ({ signClient, session, peerAddress }) => {
     const publicClient = createPublicClient({
@@ -66,45 +62,7 @@ export async function topup(opts) {
       throw new Error("USDT transfer transaction reverted");
     }
     console.error("USDT transfer confirmed.");
-
-    // 检查是否已有无限额度 approve，已授权则跳过 BNB
-    const skipGas = opts.skipGas || false;
-    let needGas = !skipGas;
-    if (needGas) {
-      try {
-        const allowance = await getAllowance(sessionAddress);
-        if (allowance > 0n) {
-          needGas = false;
-          console.error("Allowance sufficient, skipping BNB transfer.");
-        }
-      } catch {}
-    }
-    if (needGas) {
-      try {
-        setStatus("signing", { amount: AUTO_GAS_BNB, token: "BNB", to: sessionAddress });
-        console.error(`\nRequesting BNB transfer: ${AUTO_GAS_BNB} BNB → ${sessionAddress} (for approve gas)`);
-        console.error("Please confirm the second transaction in your wallet app...");
-        bnbTxHash = await requestNativeTransfer(signClient, session, {
-          from: peerAddress,
-          to: sessionAddress,
-          value: AUTO_GAS_BNB,
-        });
-        setStatus("tx_submitted", { txHash: bnbTxHash, amount: AUTO_GAS_BNB, token: "BNB" });
-        console.error(`BNB transfer submitted: ${bnbTxHash}`);
-        const bnbReceipt = await publicClient.waitForTransactionReceipt({
-          hash: bnbTxHash,
-          timeout: 60_000,
-        });
-        if (bnbReceipt.status !== "success") {
-          throw new Error("BNB transfer reverted");
-        }
-        console.error("BNB transfer confirmed.");
-      } catch (bnbErr) {
-        console.error(`Warning: BNB auto-transfer failed (${bnbErr.message}). USDT was transferred successfully. Run 'x402-card gas' to add BNB manually.`);
-      }
-    }
-
-    setStatus("confirmed", { txHash: usdtTxHash, amount, token: "USDT", bnbTxHash });
+    setStatus("confirmed", { txHash: usdtTxHash, amount, token: "USDT" });
   });
 
   // 查询最终余额
@@ -122,10 +80,7 @@ export async function topup(opts) {
       usdt: finalBalance.usdt,
       bnb: finalBalance.bnb,
     },
-    transactions: {
-      usdt: usdtTxHash || null,
-      bnb: bnbTxHash || null,
-    },
-    note: "BNB is included automatically for BSC USDT approve gas.",
+    transaction: usdtTxHash,
   }, null, 2));
+  process.exit(0);
 }
