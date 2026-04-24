@@ -16,11 +16,11 @@
       "Read(//Users/yuanyong/.claude/skills/**)",
       "Read(//Users/yuanyong/.agents/skills/x402-card/**)",
       "Bash(find ~/.claude/skills/x402-card -name \"package.json\" -exec cat {})",
-      "Bash(tar -tzf aeon-ai-pay-x402-card-0.6.7.tgz)",
-      "Bash(tar -xzf aeon-ai-pay-x402-card-0.6.7.tgz)",
+      "Bash(tar -tzf aeon-ai-pay-x402-card-0.6.8.tgz)",
+      "Bash(tar -xzf aeon-ai-pay-x402-card-0.6.8.tgz)",
       "Bash(rm -rf ~/.claude/skills/x402-card)",
       "Bash(cp -r /tmp/package/skills/x402-card ~/.claude/skills/)",
-      "Bash(rm -rf /tmp/package /tmp/aeon-ai-pay-x402-card-0.6.7.tgz)",
+      "Bash(rm -rf /tmp/package /tmp/aeon-ai-pay-x402-card-0.6.8.tgz)",
       "Bash(npx @aeon-ai-pay/x402-card withdraw --to \"<你的主钱包地址>\" --amount 10)",
       "Bash(node /Users/yuanyong/work/aeon/x402-card/bin/cli.mjs --version)",
       "Bash(rm -rf ~/.npm/_npx)",
@@ -65,7 +65,9 @@
       "mcp__figma-console__figma_get_component_image",
       "WebFetch(domain:figma-alpha-api.s3.us-west-2.amazonaws.com)",
       "Bash(npm update:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(rm -f ~/.x402-card/.update-check)",
+      "Read(//Users/yuanyong/.x402-card/**)"
     ]
   }
 }

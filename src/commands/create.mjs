@@ -28,7 +28,6 @@ export async function create(opts) {
   const { amount, poll } = opts;
   const amountNum = parseFloat(amount);
 
-
   // 1. 参数校验
   if (!serviceUrl) {
     console.error(JSON.stringify({ error: "Missing service URL. This should not happen — default is built-in. Run: x402-card setup --service-url <url> to override." }));

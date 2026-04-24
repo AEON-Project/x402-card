@@ -91,4 +91,12 @@ program
     return withdraw(opts);
   });
 
+program
+  .command("clean")
+  .description("Remove skill, uninstall package, and clear npm/npx cache")
+  .action(async () => {
+    const { clean } = await import("../src/commands/clean.mjs");
+    return clean();
+  });
+
 program.parse();

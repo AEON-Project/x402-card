@@ -3,7 +3,6 @@
  * 用于通过 WalletConnect 协议连接用户钱包并发起交易
  */
 import { SignClient } from "@walletconnect/sign-client";
-import qrcode from "qrcode-terminal";
 import { encodeFunctionData, parseUnits } from "viem";
 import { writeFileSync } from "fs";
 import { join } from "path";
@@ -463,8 +462,14 @@ export async function getOrConnectWallet(signClient, statusPort, amount = null) 
         }
       }
     } catch {
-      // session.get 抛出说明 topic 不存在，继续走新建流程
+      // session.get 抛出说明 topic 不存在
     }
+    // 旧 session 无效，清除持久化记录
+    try {
+      const cfg = loadConfig();
+      delete cfg.wcSession;
+      saveConfig(cfg);
+    } catch {}
   }
 
   // 新建连接
