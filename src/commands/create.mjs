@@ -8,7 +8,7 @@ import {
 } from "../constants.mjs";
 import {
   initSignClient,
-  connectWallet,
+  getOrConnectWallet,
   requestERC20Transfer,
   requestNativeTransfer,
   disconnectSession,
@@ -219,8 +219,8 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
     console.error("Initializing WalletConnect...");
     signClient = await initSignClient(projectId);
 
-    let peerAddress;
-    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount));
+    let peerAddress, reused;
+    ({ session, peerAddress, reused } = await getOrConnectWallet(signClient, statusPort, amount));
     console.error(`Wallet connected: ${peerAddress}`);
 
     const { createPublicClient, http } = await import("viem");
@@ -308,7 +308,7 @@ async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
   } finally {
     await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
     stopStatusServer();
-    if (session && signClient) {
+    if (exitCode !== 0 && session && signClient) {
       await disconnectSession(signClient, session);
     }
   }
