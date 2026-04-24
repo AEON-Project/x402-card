@@ -113,7 +113,8 @@ export async function withdraw(opts) {
     if (freshBalance.bnbRaw > 0n) {
       try {
         const gasPrice = await publicClient.getGasPrice();
-        const gasCost = BNB_TRANSFER_GAS * gasPrice;
+        // 预留 20% buffer 应对 gas price 波动
+        const gasCost = BNB_TRANSFER_GAS * (gasPrice * 120n / 100n);
         const sendable = freshBalance.bnbRaw - gasCost;
 
         if (sendable > 0n) {
@@ -122,6 +123,7 @@ export async function withdraw(opts) {
             to: mainWallet,
             value: sendable,
             gas: BNB_TRANSFER_GAS,
+            gasPrice,
           });
           console.error(`BNB tx: ${bnbTxHash}`);
 
