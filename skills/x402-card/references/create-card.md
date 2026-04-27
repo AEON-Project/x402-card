@@ -1,50 +1,50 @@
-# 创建虚拟卡
+# Create Virtual Card
 
-## 前提检查
+## Prerequisites
 
-创建卡片前，确认以下事项：
+Before creating a card, confirm the following:
 
-1. 钱包已配置 — 运行 `setup --check`（自动生成本地钱包）。
-2. Service URL 已配置（有内置默认值，无需操作，除非用户想要覆盖）
-3. `create` 命令会自动检查预授权额度和钱包余额，不足时自动发起 WalletConnect 充值，无需单独运行 `wallet` 或 `topup`。
+1. Wallet is configured — run `setup --check`. If not ready, the CLI will auto-create one.
+2. Service URL is configured (built-in default is available; no action needed unless user wants to override)
+3. The `create` command automatically checks allowance and wallet balance before payment. If insufficient, it auto-initiates WalletConnect funding — no need to run `wallet` or `topup` separately.
 
-## 工作流程
+## Workflow
 
-### 步骤 1：确认金额
+### Step 1: Confirm Amount
 
-询问用户要充值多少到虚拟卡。
+Ask the user how much to load onto the virtual card.
 
-- 金额限制由 CLI 强制执行（`amountLimits.min` ~ `amountLimits.max`，来自 `setup --check`）。
-- 货币：USD（服务端处理加密货币兑换）
+- Amount limits are enforced by the CLI (`amountLimits.min` ~ `amountLimits.max`, from `setup --check`).
+- Currency: USD (server handles crypto conversion)
 
-**若用户未指定金额**，向用户展示有效区间并请求确认（**文案必须完全一致**，仅变量替换）：
+**If user does not specify an amount**, show the valid range and ask for confirmation (**copy must be verbatim**, variable substitution only):
 > "You can create a card of up to ${min}~${max}. How much would you like to load onto the card？"
 
-用户指定金额后，**立即执行**，不需要二次确认。
+Once the user specifies an amount, **execute immediately** — no second confirmation needed.
 
-### 步骤 2：执行
+### Step 2: Execute
 
 ```bash
-# 创建卡片并自动轮询状态
+# Create card and auto-poll status
 npx @aeon-ai-pay/x402-card create --amount <amount> --poll
 ```
 
-CLI 自动处理完整流程：
-1. 发送 `GET /open/ai/x402/card/create?amount=X` → 收到 HTTP 402 + 支付要求（精确 USDT 金额）
-2. 检查预授权额度（allowance）→ 若不足且无 BNB，标记需要 BNB
-3. 检查 USDT 余额 → 若不足，标记需要充值
-4. 若需要充值或 BNB → 自动发起 WalletConnect 充值（打开 QR 页面，等待用户在钱包 App 确认）
-5. 充值完成后自动继续
-6. approve 授权（仅首次或额度不足时，消耗少量 BNB）
-7. 使用第一次 402 响应的精确金额进行 EIP-712 签名
-8. 附带 `PAYMENT-SIGNATURE` 头重试请求 → 收到 HTTP 200
-9. 使用 `--poll` 时，最多轮询 42 次（前 5 次每 2 秒，之后每 5 秒）直到卡片就绪
+CLI automatically handles the full flow:
+1. Send `GET /open/ai/x402/card/create?amount=X` → receive HTTP 402 + payment requirements (exact USDT amount)
+2. Check allowance → if insufficient and no BNB, mark BNB needed
+3. Check USDT balance → if insufficient, mark top-up needed
+4. If top-up or BNB needed → auto-initiate WalletConnect funding (opens QR page, waits for user to confirm in wallet app)
+5. After funding completes, auto-continue
+6. Approve authorization (only on first use or when allowance insufficient, costs small amount of BNB)
+7. Sign with the exact amount from the first 402 response using EIP-712
+8. Retry request with `PAYMENT-SIGNATURE` header → receive HTTP 200
+9. With `--poll`, polls up to 42 times (first 5 at 2-second intervals, then every 5 seconds) until card is ready
 
-### 步骤 3：解析结果
+### Step 3: Parse Result
 
-**stdout** 输出 JSON（可解析），**stderr** 输出进度日志。
+**stdout** outputs JSON (parseable), **stderr** outputs progress logs.
 
-成功输出：
+Successful output:
 ```json
 {
   "success": true,
@@ -60,7 +60,7 @@ CLI 自动处理完整流程：
 }
 ```
 
-使用 `--poll` 时，卡片就绪后的额外输出：
+With `--poll`, additional output after card is ready:
 ```json
 {
   "pollResult": {
@@ -78,14 +78,14 @@ CLI 自动处理完整流程：
 }
 ```
 
-### 步骤 4：展示给用户
+### Step 4: Present to User
 
-查询卡片详情可能需要约 30 秒，先输出等待提示（**文案必须完全一致**）：
+Fetching card details may take about 30 seconds. Output a waiting prompt first (**copy must be verbatim**):
 ```
 > Fetching card details, please wait...
 ```
 
-详情返回后，成功时（**文案必须完全一致**，仅变量替换）：
+Once details are returned, on success (**copy must be verbatim**, variable substitution only):
 ```
 Order No: {orderNo}
 Card: {cardScheme} •••• {last4}
@@ -94,16 +94,16 @@ Remaining balance: ${amount} USD
 Usage: 0 / 1 (single-use)
 ```
 
-保存 `orderNo` 用于后续状态查询。
+Save the `orderNo` for subsequent status queries.
 
-## 错误处理
+## Error Handling
 
-| 场景 | CLI 输出 | 处理方式 |
+| Scenario | CLI Output | Action |
 |------|---------|---------|
-| 金额超出范围 | 包含允许范围的错误 JSON | 转达给用户 |
-| 钱包未配置 | `Wallet not configured` | 运行 `setup --check` |
-| 充值签名超时（5 分钟） | `Payment approval timed out. Please try again.` | 转达给用户，询问是否重试 |
-| 用户拒绝签名 | `Payment approval was rejected. Please try again if you'd like to proceed.` | 转达给用户，不自动重试 |
-| 充值后余额仍不足 | `Still insufficient USDT after funding` | 转达给用户 |
-| 网络错误 | 服务端错误 JSON | 重试一次，然后报告给用户 |
-| 交易回滚 | txHash | 建议用户在 BSCScan 上查看 |
+| Amount out of range | Error JSON with allowed range | Relay to user |
+| Wallet not configured | `Wallet not configured` | Run `setup --check` |
+| Funding signature timeout (5 min) | `Payment approval timed out. Please try again.` | Relay to user, ask if they want to retry |
+| User rejected signature | `Payment approval was rejected. Please try again if you'd like to proceed.` | Relay to user, do not auto-retry |
+| Insufficient balance after funding | `Still insufficient USDT after funding` | Relay to user |
+| Network error | Server error JSON | Retry once, then report to user |
+| Transaction reverted | txHash | Suggest user check on BSCScan |

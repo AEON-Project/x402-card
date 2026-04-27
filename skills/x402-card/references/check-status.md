@@ -1,16 +1,16 @@
-# 查询卡片状态
+# Check Card Status
 
-## 命令
+## Command
 
 ```bash
-# 单次查询
+# Single query
 npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 
-# 轮询直到终态（SUCCESS 或 FAIL）
+# Poll until terminal status (SUCCESS or FAIL)
 npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll
 ```
 
-## 响应格式
+## Response Format
 
 ```json
 {
@@ -31,38 +31,38 @@ npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll
 }
 ```
 
-## 状态值
+## Status Values
 
-### orderStatus（订单状态）
+### orderStatus (Order Status)
 
-| 状态 | 含义 | 操作 |
+| Status | Meaning | Action |
 |------|------|------|
-| `INIT` | 订单已创建，尚未支付 | 等待 |
-| `PENDING` | 支付已提交，链上确认中 | 继续轮询 |
-| `SUCCESS` | 卡片创建成功 | 展示卡片详情 |
-| `FAIL` | 失败 | 显示错误，建议重试 |
+| `INIT` | Order created, not yet paid | Wait |
+| `PENDING` | Payment submitted, awaiting on-chain confirmation | Continue polling |
+| `SUCCESS` | Card created successfully | Show card details |
+| `FAIL` | Failed | Show error, suggest retry |
 
-### channelStatus（渠道状态）
+### channelStatus (Channel Status)
 
-| 状态 | 含义 |
+| Status | Meaning |
 |------|------|
-| `INIT` | 尚未发送到卡片供应商 |
-| `PROCESSING` | 供应商正在创建卡片 |
-| `COMPLETED` | 卡片已就绪 |
-| `FAILED` | 卡片创建失败 |
+| `INIT` | Not yet sent to card provider |
+| `PROCESSING` | Provider is creating the card |
+| `COMPLETED` | Card is ready |
+| `FAILED` | Card creation failed |
 
-### cardStatus（卡片状态）
+### cardStatus (Card Status)
 
-| 状态 | 含义 |
+| Status | Meaning |
 |------|------|
-| `PENDING` | 配置中 |
-| `ACTIVE` | 可以使用 |
-| `FROZEN` | 已冻结 |
-| `CANCELLED` | 已注销 |
+| `PENDING` | Being provisioned |
+| `ACTIVE` | Ready to use |
+| `FROZEN` | Frozen |
+| `CANCELLED` | Cancelled |
 
-## 轮询行为
+## Polling Behavior
 
-使用 `--poll` 时：
-- 最多 **42 次**（前 5 次每 **2 秒**，之后每 **5 秒**）
-- 在 `SUCCESS`、`FAIL` 或 `cardStatus=ACTIVE` 时停止
-- 如果超时，通知用户并提供手动查询命令
+With `--poll`:
+- Up to **42 attempts** (first 5 at **2-second** intervals, then every **5 seconds**)
+- Stops on `SUCCESS`, `FAIL`, or `cardStatus=ACTIVE`
+- If timed out, notify user and provide manual query command
