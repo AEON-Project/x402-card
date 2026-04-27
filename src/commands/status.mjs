@@ -1,5 +1,6 @@
 import { resolve } from "../config.mjs";
 import { POLL_INTERVAL, MAX_POLLS } from "../constants.mjs";
+import { sanitizeOutput } from "../sanitize.mjs";
 
 export async function status(opts) {
   const { default: axios } = await import("axios");
@@ -16,7 +17,7 @@ export async function status(opts) {
   if (!poll) {
     try {
       const res = await axios.get(url);
-      console.log(JSON.stringify(res.data, null, 2));
+      console.log(JSON.stringify(sanitizeOutput(res.data), null, 2));
     } catch (error) {
       console.error(JSON.stringify({
         error: error.message,
@@ -41,7 +42,7 @@ export async function status(opts) {
       );
 
       if (model?.orderStatus === "SUCCESS" || model?.orderStatus === "FAIL") {
-        console.log(JSON.stringify(res.data, null, 2));
+        console.log(JSON.stringify(sanitizeOutput(res.data), null, 2));
         return;
       }
     } catch (e) {

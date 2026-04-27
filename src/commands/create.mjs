@@ -1,6 +1,7 @@
 import { createX402Api, decodePaymentResponse, fetchPaymentRequirements } from "../x402.mjs";
 import { resolve } from "../config.mjs";
 import { getWalletBalance, getAllowance } from "../balance.mjs";
+import { sanitizeOutput } from "../sanitize.mjs";
 import axios from "axios";
 import {
   MIN_AMOUNT, MAX_AMOUNT, POLL_INTERVAL, MAX_POLLS,
@@ -159,7 +160,7 @@ export async function create(opts) {
     const result = {
       success: true,
       orderNo,
-      data: response.data,
+      data: sanitizeOutput(response.data),
       paymentResponse,
     };
 
@@ -282,7 +283,7 @@ async function pollStatus(serviceUrl, orderNo) {
       console.error(`[${i}/${MAX_POLLS}] orderStatus=${model?.orderStatus} channelStatus=${model?.channelStatus}`);
 
       if (model?.orderStatus === "SUCCESS" || model?.orderStatus === "FAIL" || model?.cardStatus === "ACTIVE") {
-        console.log(JSON.stringify({ pollResult: model }, null, 2));
+        console.log(JSON.stringify({ pollResult: sanitizeOutput(model) }, null, 2));
         return;
       }
     } catch (e) {
