@@ -4,9 +4,9 @@
 
 创建卡片前，确认以下事项：
 
-1. 钱包已配置 — 运行 `setup --check`。如未就绪，运行 `connect` 通过 WalletConnect 设置。
+1. 钱包已配置 — 运行 `setup --check`（自动生成本地钱包）。
 2. Service URL 已配置（有内置默认值，无需操作，除非用户想要覆盖）
-3. `create` 命令会在支付前自动检查钱包余额，余额不足时自动发起 WalletConnect 充值，无需单独运行 `wallet` 或 `topup`。
+3. `create` 命令会自动检查预授权额度和钱包余额，不足时自动发起 WalletConnect 充值，无需单独运行 `wallet` 或 `topup`。
 
 ## 工作流程
 
@@ -30,13 +30,15 @@ npx @aeon-ai-pay/x402-card create --amount <amount> --poll
 ```
 
 CLI 自动处理完整流程：
-1. 检查本地钱包余额（USDT + BNB）
-2. 若余额不足 → 自动发起 WalletConnect 充值（打开 QR 页面，等待用户在钱包 App 确认转账）
-3. 充值完成后自动继续
-4. 发送 `GET /open/ai/x402/card/create?amount=X` → 收到 HTTP 402
-5. 解析支付要求，使用本地钱包签名（EIP-712）
-6. 附带 `PAYMENT-SIGNATURE` 头重试请求 → 收到 HTTP 200
-7. 使用 `--poll` 时，每 5 秒自动轮询 `/status` 直到卡片就绪
+1. 发送 `GET /open/ai/x402/card/create?amount=X` → 收到 HTTP 402 + 支付要求（精确 USDT 金额）
+2. 检查预授权额度（allowance）→ 若不足且无 BNB，标记需要 BNB
+3. 检查 USDT 余额 → 若不足，标记需要充值
+4. 若需要充值或 BNB → 自动发起 WalletConnect 充值（打开 QR 页面，等待用户在钱包 App 确认）
+5. 充值完成后自动继续
+6. approve 授权（仅首次或额度不足时，消耗少量 BNB）
+7. 使用第一次 402 响应的精确金额进行 EIP-712 签名
+8. 附带 `PAYMENT-SIGNATURE` 头重试请求 → 收到 HTTP 200
+9. 使用 `--poll` 时，最多轮询 42 次（前 5 次每 2 秒，之后每 5 秒）直到卡片就绪
 
 ### 步骤 3：解析结果
 

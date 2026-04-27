@@ -38,10 +38,10 @@ compatibility: 需要 Node.js >= 18 和 npm
 
 > ⚡ **Gas 模型**：
 > BSC USDT 不支持 EIP-3009，建卡前客户端需做一次 `approve` 授权（链上交易），真正的 USDT 转账由服务端执行。
-> - **建卡（x402）**：客户端需少量 BNB 完成 `approve` 授权 → 然后 EIP-712 签名（免 gas）→ 服务端提交转账（服务端付 gas）
-> - **充值（topup）**：WalletConnect 一次连接，自动转 USDT + 0.001 BNB（用于 approve gas），用户需在钱包 App 内确认 **2 笔交易**
-> - **赎回（withdraw）**：本地钱包直发 ERC20 transfer，需要 BNB 付 gas
-> - **补 gas（gas）**：仅转 BNB（当 topup 时 BNB 转账失败或需要额外补充时用）
+> - **建卡（x402）**：检查预授权额度 → 若不足且无 BNB，自动通过 WalletConnect 转 0.0003 BNB 用于 approve gas → 若 USDT 不足，自动转 USDT → EIP-712 签名（免 gas）→ 服务端提交转账（服务端付 gas）
+> - **充值（topup）**：WalletConnect 一次连接，转 USDT 到本地钱包，用户需在钱包 App 内确认 **1 笔交易**
+> - **赎回（withdraw）**：本地钱包直发 ERC20 transfer + BNB，需要 BNB 付 gas
+> - **补 gas（gas）**：仅转 BNB（当 withdraw 报 No BNB for gas 或需要额外补充时用）
 
 ---
 
@@ -72,8 +72,9 @@ x402-card setup --show                 # 查看配置
 x402-card create --amount <usd> --poll # 创建虚拟卡
 x402-card status --order-no <orderNo>  # 查询卡片状态
 x402-card wallet                       # 查询本地钱包余额
-x402-card topup --amount <usdt>        # 自动充值 USDT + BNB（WalletConnect, 2 笔确认）
-x402-card gas [--amount <bnb>]         # 给本地钱包充 BNB（WalletConnect, 用于 withdraw）
+x402-card topup --amount <usdt>        # 充值 USDT（WalletConnect, 1 笔确认）
+x402-card gas [--amount <bnb>]         # 给本地钱包充 BNB（WalletConnect, 用于 approve/withdraw）
+x402-card clean                        # 卸载技能、清理缓存
 x402-card withdraw [--to <addr>] [--amount <usdt>]  # 提取资金
 ```
 
@@ -149,12 +150,14 @@ x402-card create --amount <usd> --poll
 
 CLI 内部依次执行：
 1. 参数与限额校验
-2. 链上余额检查（USDT + BNB）
-3. **若余额不足** → 自动发起 WalletConnect 充值（打开 QR 页面，等待用户在钱包 App 确认转账，超时 5 分钟）
-4. 充值完成后自动继续
-5. `approve` 授权（链上交易，消耗少量 BNB）
-6. EIP-712 签名（免 gas）→ 服务端提交实际转账
-7. 若带 `--poll` → 最多轮询 10 次，每次间隔 5 秒
+2. 获取服务端支付要求（精确 USDT 金额）
+3. 检查预授权额度（allowance）→ 若不足且本地钱包无 BNB，标记需要 BNB
+4. 检查 USDT 余额 → 若不足，标记需要充值
+5. **若需要充值或 BNB** → 自动发起 WalletConnect 充值（打开 QR 页面，等待用户在钱包 App 确认，超时 5 分钟）
+6. 充值完成后自动继续
+7. `approve` 授权（链上交易，消耗少量 BNB，仅首次或额度不足时）
+8. EIP-712 签名（免 gas）→ 服务端提交实际转账
+9. 若带 `--poll` → 最多轮询 42 次（前 5 次每 2 秒，之后每 5 秒）
 
 输出首行：
 
@@ -229,11 +232,11 @@ CLI 返回 `Still insufficient USDT after funding` 错误。转达给用户。
 
 CLI 返回 `success: false` 及 HTTP 错误。展示原始错误，建议用户稍后重试或检查 `serviceUrl`。
 
-#### 情况 E：轮询超时（`--poll` 用满 10 次）
+#### 情况 E：轮询超时（`--poll` 用满 42 次）
 
 CLI 输出：
 ```
-Polling timeout after 10 attempts. Check manually with: x402-card status --order-no {orderNo}
+Polling timeout after 42 attempts. Check manually with: x402-card status --order-no {orderNo}
 ```
 告知用户卡片仍在处理中，记下 `orderNo`，稍后用步骤 3 查询。**禁止继续轮询。**
 
@@ -269,7 +272,7 @@ Usage: {used} / {total} (single-use)
 | --- | --- |
 | 用户没有 orderNo | 询问最近一次 `create` 输出中的 `orderNo`；无则告知无法查询 |
 | orderNo 无效 / 服务端返回空 | 展示原始错误，建议用户核对 orderNo |
-| 状态为 Pending | 提示卡片仍在处理；可选轮询，但仍不超过 10 次 |
+| 状态为 Pending | 提示卡片仍在处理；可选轮询，但仍不超过 42 次 |
 | 状态为 Failed | 告知失败原因；订单已无效，需重新 `create` |
 
 详细字段见 [check-status](references/check-status.md)。
@@ -288,18 +291,15 @@ x402-card wallet
 
 输出本地钱包 USDT 余额及地址。若曾通过 `topup` 充值，会附带主钱包余额。
 
-### 4.2 追加充值（同 2.C 流程）
+### 4.2 追加充值
 
 ```bash
-x402-card topup --amount <usdt>               # USDT + 0.001 BNB（默认）
-x402-card topup --amount <usdt> --skip-gas     # 仅 USDT，不附带 BNB
+x402-card topup --amount <usdt>               # 充值 USDT 到本地钱包
 ```
 
-`topup` 默认在一次 WalletConnect 会话内**同时转 USDT 和 0.001 BNB**，用户需在钱包 App 内依次确认 **2 笔交易**：
-1. 第 1 笔：USDT（指定金额）
-2. 第 2 笔：0.001 BNB（用于 BSC USDT approve 授权的 gas）
+`topup` 通过 WalletConnect 从主钱包转 USDT 到本地钱包，用户需在钱包 App 内确认 **1 笔交易**。
 
-若第 2 笔 BNB 失败（如拒绝或余额不足），**不阻断**——USDT 已到账，BNB 可后续用 `x402-card gas` 单独补充。
+> 💡 BNB gas 无需单独充值——`create` 命令在检测到预授权不足且无 BNB 时，会自动请求转入 0.0003 BNB。
 
 ### 4.3 提取资金到主钱包
 
@@ -346,7 +346,7 @@ Status: completed
 
 ### 4.4 为本地钱包补 gas（BNB）
 
-当 `withdraw` 报 `No BNB for gas` 时，使用专用 `gas` 子命令通过 WalletConnect 从主钱包转少量 BNB 进来。
+当 `withdraw` 报 `No BNB for gas` 或需要手动补充 BNB 时，使用专用 `gas` 子命令通过 WalletConnect 从主钱包转少量 BNB 进来。
 
 ```bash
 x402-card gas                    # 默认 0.001 BNB
@@ -357,7 +357,7 @@ x402-card gas --amount 0.002     # 自定义金额
 - 终端打印 QR 码 + `wc:` URI
 - 用户用钱包 App 扫码连接主钱包
 - 在钱包内确认 1 笔 BNB 转账（金额 = `<amount>`，目标 = 本地钱包）
-- 最长等待 120 秒，**不可后台运行**
+- 最长等待 5 分钟，**不可后台运行**
 
 成功后会自动把 `mainWallet` 写回 config（后续 withdraw 可省略 `--to`）。
 
@@ -461,5 +461,5 @@ Balance: {bnb} BNB
 - **绝不**跳过 `setup --check` 直接执行其他命令
 - **绝不**让 `create` / `topup` / `gas` / 任何含 WalletConnect 流程的命令在后台运行（必须前台同步等待）。误后台导致的"已支付未检测"问题，按步骤 2.1 的恢复指引处理
 - **不要**在充值/签名失败后自动重试，转达错误给用户后停止
-- **不要**轮询 `status` 超过 10 次；超时即停，提示用户记下 `orderNo` 自行查询
+- **不要**轮询 `status` 超过 42 次；超时即停，提示用户记下 `orderNo` 自行查询
 - **不要**自行编造 `amountLimits`；始终使用 `setup --check` 返回的 `min/max`

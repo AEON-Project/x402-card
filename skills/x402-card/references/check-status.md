@@ -63,6 +63,6 @@ npx @aeon-ai-pay/x402-card status --order-no <orderNo> --poll
 ## 轮询行为
 
 使用 `--poll` 时：
-- 每 **5 秒**轮询一次，最多 **10 次**（共 50 秒）
-- 在 `SUCCESS` 或 `FAIL` 时停止
+- 最多 **42 次**（前 5 次每 **2 秒**，之后每 **5 秒**）
+- 在 `SUCCESS`、`FAIL` 或 `cardStatus=ACTIVE` 时停止
 - 如果超时，通知用户并提供手动查询命令

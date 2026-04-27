@@ -19,10 +19,11 @@ npx skills add AEON-Project/x402-card -a claude-code -a cursor -a codex -g -y
 ## 命令行用法
 
 ```bash
-# 首次使用：通过 WalletConnect 连接钱包（私钥绝不存储在本地）
-npx @aeon-ai-pay/x402-card connect --amount 50
+# 首次使用：自动创建本地钱包（私钥本地生成，绝不上传）
+npx @aeon-ai-pay/x402-card setup --check
 
 # 创建虚拟卡（$5 美元，自动轮询状态）
+# 余额不足时自动通过 WalletConnect 发起充值
 npx @aeon-ai-pay/x402-card create --amount 5 --poll
 
 # 查询卡片状态
@@ -31,34 +32,41 @@ npx @aeon-ai-pay/x402-card status --order-no <orderNo>
 # 查看钱包余额（BNB + USDT）
 npx @aeon-ai-pay/x402-card wallet
 
-# 余额不足时为 session key 充值
+# 手动为本地钱包充值 USDT
 npx @aeon-ai-pay/x402-card topup --amount 50
 
-# 将剩余 USDT 提回主钱包
+# 为本地钱包补 BNB gas
+npx @aeon-ai-pay/x402-card gas --amount 0.001
+
+# 将剩余资金（USDT + BNB）提回主钱包
 npx @aeon-ai-pay/x402-card withdraw
 
 # 查看当前配置
 npx @aeon-ai-pay/x402-card setup --show
+
+# 卸载技能、清理缓存
+npx @aeon-ai-pay/x402-card clean
 ```
 
 ## 前提条件
 
 - Node.js >= 18
-- 一个支持 WalletConnect 的手机钱包 App（MetaMask、Trust Wallet 等）
+- 一个支持 WalletConnect 的手机钱包 App（MetaMask、OKX Wallet、Trust Wallet 等）
 - BSC 链上的 USDT (BEP-20) 用于购卡
-- 少量 BNB 用于 gas 费（约 $0.01/笔）
+- 少量 BNB 用于 approve gas（约 $0.002/笔，首次授权后无需再付）
 
 ## 工作原理
 
 ```
-1. 通过 WalletConnect 连接钱包（扫码、确认注资）
-2. CLI 在本地生成 session key，由主钱包注资
-3. Session key 自动签名 x402 支付 — 无需手动确认
+1. CLI 在本地自动生成 session key（一次性钱包）
+2. 创建卡时，若余额不足自动通过 WalletConnect 扫码充值（USDT + BNB gas）
+3. 首次使用需一次 approve 授权（无限额度，后续无需重复）
+4. Session key 自动签名 x402 支付 — 无需手动确认
 
 Agent 流程：
   用户意图 -> Agent 激活技能 -> x402 两阶段协议：
     1. GET /create?amount=X         -> HTTP 402 + 支付要求
-    2. Session key 签名并重试       -> HTTP 200 + 支付确认
+    2. Session key EIP-712 签名     -> 服务端提交链上转账
     3. 轮询 /status?orderNo=X      -> 卡片详情就绪
 ```
 
@@ -66,7 +74,7 @@ Agent 流程：
 
 配置存储在 `~/.x402-card/config.json`（文件权限 600）。
 
-运行 `connect` 命令通过 WalletConnect 设置钱包。主钱包私钥**绝不会**存储在本地，仅保存 session key（一个有限额的临时钱包）。
+运行 `setup --check` 自动生成本地钱包。主钱包私钥**绝不会**存储在本地，仅保存 session key（一个本地生成的临时钱包）。充值通过 WalletConnect 扫码完成。
 
 覆盖默认 service URL（可选）：
 ```bash
