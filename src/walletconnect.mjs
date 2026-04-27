@@ -62,7 +62,7 @@ const QR_EXPIRE_MS = 5 * 60 * 1000;
  * @param {number} statusPort - 状态服务端口
  * @param {string|null} amount - 用户需要支付的 USDT 数量（如 "0.66"）
  */
-function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) only") {
+function openQRInBrowser(uri, statusPort, amount, token = "USDT", network = "BNB Chain(BEP20) only") {
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>AEON — Wallet Connect</title>
 <style>
@@ -146,6 +146,7 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
 <script>
   const URI = ${JSON.stringify(uri)};
   const AMOUNT = ${JSON.stringify(amount || null)};
+  const TOKEN = ${JSON.stringify(token)};
   const NETWORK = ${JSON.stringify(network)};
   const STATUS_URL = "http://127.0.0.1:${statusPort}/status";
   const EXPIRE_MS = ${QR_EXPIRE_MS};
@@ -216,7 +217,7 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
     let [intPart, decPart] = body.split('.');
     if (decPart) decPart = decPart.replace(/0+$/, '');
     const intWithComma = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return neg + intWithComma + (decPart ? '.' + decPart : '') + ' USDT';
+    return neg + intWithComma + (decPart ? '.' + decPart : '') + ' ' + TOKEN;
   }
 
   // ====== 页面渲染函数 ======
@@ -251,9 +252,12 @@ function openQRInBrowser(uri, statusPort, amount, network = "BNB Chain(BEP20) on
 
     // USDT 图标 SVG（绿色圆形 Tether 标志）
     const USDT_ICON = '<svg class="usdt-icon" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="9" fill="#26A17B"/><path d="M10.1 9.6c-.06 0-.33.02-.73.02-.32 0-.58-.01-.67-.02-1.32-.06-2.3-.3-2.3-.58 0-.29.98-.52 2.3-.58v.93c.09.01.36.02.68.02.38 0 .66-.01.72-.02v-.93c1.31.06 2.29.3 2.29.58 0 .28-.98.52-2.29.58zm0-.87v-.83h2.05V6.5H5.88v1.4h2.05v.83c-1.48.07-2.6.38-2.6.75 0 .37 1.12.68 2.6.75v2.69h1.07v-2.69c1.48-.07 2.59-.38 2.59-.75 0-.37-1.11-.68-2.59-.75z" fill="#fff"/></svg>';
+    // BNB 图标 SVG（黄色圆形 BNB 标志）
+    const BNB_ICON = '<svg class="usdt-icon" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="9" cy="9" r="9" fill="#F3BA2F"/><path d="M9 4.5L7.2 6.3l-1.8-1.8L9 1.2l3.6 3.3-1.8 1.8L9 4.5zm-4.5 4.5L2.7 7.2 4.5 5.4l1.8 1.8L4.5 9zm4.5 4.5l-1.8-1.8-1.8 1.8L9 16.8l3.6-3.3-1.8-1.8L9 13.5zm4.5-4.5l1.8 1.8-1.8 1.8-1.8-1.8 1.8-1.8zM10.8 9L9 7.2 7.2 9 9 10.8 10.8 9z" fill="#fff"/></svg>';
+    const TOKEN_ICON = TOKEN === 'BNB' ? BNB_ICON : USDT_ICON;
 
     const infoCardHTML = AMOUNT ? '<div class="info-card">' +
-      '<div class="info-row"><span class="info-label">Amount</span><span class="info-value green">' + USDT_ICON + fmtAmount(AMOUNT) + '</span></div>' +
+      '<div class="info-row"><span class="info-label">Amount</span><span class="info-value green">' + TOKEN_ICON + fmtAmount(AMOUNT) + '</span></div>' +
       '<div class="info-row"><span class="info-label">Network</span><span class="info-value">' + NETWORK + '</span></div>' +
       '</div>' : '';
 
@@ -426,13 +430,23 @@ export async function initSignClient(projectId) {
     ),
   ]);
 
-  // 清理残留 session（并行等待完成，确保 relay 状态干净后再建新连接）
+  // 清理残留 session + pairing（并行等待完成，确保 relay 状态干净后再建新连接）
   try {
     const sessions = client.session.getAll();
     if (sessions.length > 0) {
       await Promise.allSettled(
         sessions.map(s =>
           client.disconnect({ topic: s.topic, reason: { code: 6000, message: "Cleanup" } }).catch(() => {})
+        )
+      );
+    }
+  } catch {}
+  try {
+    const pairings = client.core.pairing.pairings.getAll({ active: true });
+    if (pairings.length > 0) {
+      await Promise.allSettled(
+        pairings.map(p =>
+          client.core.pairing.disconnect({ topic: p.topic }).catch(() => {})
         )
       );
     }
@@ -448,7 +462,7 @@ export async function initSignClient(projectId) {
  * @param {string|null} amount - 需要展示的 USDT 金额（如 "0.66"）
  * @returns {{ session: object, peerAddress: string }}
  */
-export async function connectWallet(signClient, statusPort, amount = null) {
+export async function connectWallet(signClient, statusPort, amount = null, token = "USDT") {
   const { uri, approval } = await signClient.connect({
     optionalNamespaces: {
       eip155: {
@@ -460,7 +474,7 @@ export async function connectWallet(signClient, statusPort, amount = null) {
   });
 
   // 生成 QR 码页面（含状态轮询）并在浏览器中打开
-  openQRInBrowser(uri, statusPort, amount);
+  openQRInBrowser(uri, statusPort, amount, token);
   console.error("QR code opened in browser. Scan it with your wallet app.");
   console.error("Waiting for wallet approval...");
 
@@ -510,6 +524,7 @@ export async function requestERC20Transfer(signClient, session, { from, to, toke
             from,
             to: token,
             data,
+            gas: "0xFDE8", // 65000 — ERC20 transfer 合约调用
           },
         ],
       },
@@ -544,6 +559,7 @@ export async function requestNativeTransfer(signClient, session, { from, to, val
             from,
             to,
             value: weiValue,
+            gas: "0x5208", // 21000 — BNB 原生转账固定 gas
           },
         ],
       },
@@ -569,7 +585,7 @@ const FINAL_LINGER_MS = 2000;
  * @param {(ctx: { signClient, session, peerAddress }) => Promise<void>} fn
  */
 export async function withWallet(opts, fn) {
-  const { amount = null, projectId = DEFAULT_WC_PROJECT_ID } = opts;
+  const { amount = null, token = "USDT", projectId = DEFAULT_WC_PROJECT_ID } = opts;
   const statusPort = await startStatusServer();
   let signClient = null;
   let session = null;
@@ -579,7 +595,7 @@ export async function withWallet(opts, fn) {
   try {
     signClient = await initSignClient(projectId);
     let peerAddress;
-    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount));
+    ({ session, peerAddress } = await connectWallet(signClient, statusPort, amount, token));
     console.error(`Wallet connected: ${peerAddress}`);
 
     await fn({ signClient, session, peerAddress });
@@ -607,8 +623,20 @@ export async function withWallet(opts, fn) {
   } finally {
     await new Promise((r) => setTimeout(r, FINAL_LINGER_MS));
     stopStatusServer();
-    if (session && signClient) {
-      await disconnectSession(signClient, session);
+    if (signClient) {
+      // 断开当前 session
+      if (session) {
+        await disconnectSession(signClient, session);
+      }
+      // 断开所有 pairing，确保钱包端不残留连接
+      try {
+        const pairings = signClient.core.pairing.pairings.getAll({ active: true });
+        await Promise.allSettled(
+          pairings.map(p =>
+            signClient.core.pairing.disconnect({ topic: p.topic }).catch(() => {})
+          )
+        );
+      } catch {}
     }
   }
 

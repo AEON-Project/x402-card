@@ -14,7 +14,7 @@ import {
   setStatus,
 } from "../walletconnect.mjs";
 
-const AUTO_GAS_BNB = "0.001";
+const AUTO_GAS_BNB = "0.0003";
 
 export async function create(opts) {
   console.error("Creating Agent Card...");
@@ -56,8 +56,8 @@ export async function create(opts) {
     process.exit(1);
   }
 
-  // 4. 前置余额检查 + 自动 WalletConnect 充值（基于 x402 返回的真实金额）
-  console.error("Checking wallet balance...");
+  // 4. 前置检查：预授权 → USDT 余额
+  console.error("Checking wallet...");
   let needTopup = false;
   let needGas = false;
   let sessionAddress;
@@ -71,16 +71,22 @@ export async function create(opts) {
     console.error(`Wallet: ${address}`);
     console.error(`Balance: ${usdt} USDT, ${bnb} BNB`);
 
-    if (bnbRaw === 0n) {
-      // 检查是否已对 facilitator 做过无限额度 approve，若已授权则无需 BNB gas
-      const allowance = await getAllowance(address);
-      if (allowance < BigInt(paymentReq.amountWei)) {
+    // 1. 检查预授权额度（是否已对 facilitator 做过无限额度 approve）
+    const allowance = await getAllowance(address);
+    if (allowance >= BigInt(paymentReq.amountWei)) {
+      console.error("Allowance sufficient, no approve needed.");
+    } else {
+      // 预授权不足，需要 approve（消耗 BNB gas）
+      console.error("Approve authorization insufficient, need approve.");
+      if (bnbRaw === 0n) {
         needGas = true;
-        console.error("First-time approve needed, BNB gas required.");
+        console.error("No BNB for approve gas, will request BNB transfer.");
       } else {
-        console.error("Allowance sufficient, no BNB gas needed.");
+        console.error("BNB available for approve gas.");
       }
     }
+
+    // 2. 检查 USDT 余额
     if (usdtNum < requiredUsdt) {
       needTopup = true;
       const shortfall = requiredUsdt - usdtNum;
@@ -203,7 +209,10 @@ export async function create(opts) {
  * 内联 WalletConnect 充值：在 create 流程内自动完成 USDT + BNB 充值
  */
 async function inlineWalletConnectTopup({ sessionAddress, amount, needGas }) {
-  await withWallet({ amount }, async ({ signClient, session, peerAddress }) => {
+  // 页面展示：有 USDT 转账时显示 USDT 金额，仅 BNB gas 时显示 BNB 金额
+  const pageAmount = amount || (needGas ? AUTO_GAS_BNB : null);
+  const pageToken = amount ? "USDT" : "BNB";
+  await withWallet({ amount: pageAmount, token: pageToken }, async ({ signClient, session, peerAddress }) => {
     const { createPublicClient, http } = await import("viem");
     const { bsc } = await import("viem/chains");
     const publicClient = createPublicClient({

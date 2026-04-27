@@ -33,7 +33,7 @@ export async function gas(opts) {
 
   let bnbTxHash = null;
 
-  await withWallet({}, async ({ signClient, session, peerAddress }) => {
+  await withWallet({ amount, token: "BNB" }, async ({ signClient, session, peerAddress }) => {
     const { createPublicClient, http } = await import("viem");
     const { bsc } = await import("viem/chains");
     const publicClient = createPublicClient({

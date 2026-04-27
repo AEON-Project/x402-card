@@ -21,8 +21,8 @@
     "release": "node scripts/release.mjs"
   },
   "dependencies": {
-    "@aeon-ai-pay/axios": "^2.1.0",
-    "@aeon-ai-pay/evm": "^2.1.0",
+    "@aeon-ai-pay/axios": "2.1.2",
+    "@aeon-ai-pay/evm": "2.1.3",
     "@walletconnect/sign-client": "^2.17.0",
     "axios": "^1.13.2",
     "commander": "^13.0.0",
