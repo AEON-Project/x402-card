@@ -16,11 +16,11 @@
       "Read(//Users/yuanyong/.claude/skills/**)",
       "Read(//Users/yuanyong/.agents/skills/x402-card/**)",
       "Bash(find ~/.claude/skills/x402-card -name \"package.json\" -exec cat {})",
-      "Bash(tar -tzf aeon-ai-pay-x402-card-0.7.2.tgz)",
-      "Bash(tar -xzf aeon-ai-pay-x402-card-0.7.2.tgz)",
+      "Bash(tar -tzf aeon-ai-pay-x402-card-0.7.3.tgz)",
+      "Bash(tar -xzf aeon-ai-pay-x402-card-0.7.3.tgz)",
       "Bash(rm -rf ~/.claude/skills/x402-card)",
       "Bash(cp -r /tmp/package/skills/x402-card ~/.claude/skills/)",
-      "Bash(rm -rf /tmp/package /tmp/aeon-ai-pay-x402-card-0.7.2.tgz)",
+      "Bash(rm -rf /tmp/package /tmp/aeon-ai-pay-x402-card-0.7.3.tgz)",
       "Bash(npx @aeon-ai-pay/x402-card withdraw --to \"<你的主钱包地址>\" --amount 10)",
       "Bash(node /Users/yuanyong/work/aeon/x402-card/bin/cli.mjs --version)",
       "Bash(rm -rf ~/.npm/_npx)",
@@ -76,7 +76,15 @@
       "Read(//Users/yuanyong/work/aeon/x402-card/**)",
       "Bash(x402-card topup:*)",
       "Bash(x402-card withdraw:*)",
-      "Bash(x402-card:*)"
+      "Bash(x402-card:*)",
+      "Bash(pnpm build:*)",
+      "Bash(cp /Users/yuanyong/work/lskj/bnb-x402/typescript/packages/mechanisms/evm/dist/esm/chunk-Q4PXR7SJ.mjs /Users/yuanyong/work/aeon/x402-card/node_modules/@aeon-ai-pay/evm/dist/esm/chunk-Q4PXR7SJ.mjs)",
+      "Bash(cp /Users/yuanyong/work/lskj/bnb-x402/typescript/packages/mechanisms/evm/dist/cjs/exact/client/index.js /Users/yuanyong/work/aeon/x402-card/node_modules/@aeon-ai-pay/evm/dist/cjs/exact/client/index.js)",
+      "Bash(ls /Users/yuanyong/work/lskj/bnb-x402/typescript/packages/mechanisms/evm/dist/esm/*.mjs)",
+      "Bash(rm:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
